@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Machine Learning Lectures 1–4: Guided Learning &amp; Exam Prep</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&amp;display=swap" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+    <link rel="stylesheet" href="assets/css/main.css" />
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+    <script defer src="assets/js/questions.js"></script>
+    <script defer src="assets/js/diagrams.js"></script>
+    <script defer src="assets/js/visuals.js"></script>
+    <script defer src="assets/js/app.js"></script>
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <h1>Machine Learning</h1>
+                <p>TEB3123 · Lectures 1–4</p>
+                <p class="last-updated" id="last-updated" title="Fetching from GitHub…">
+                    <span class="live-dot" aria-hidden="true"></span><span id="last-updated-text">Checking last update…</span>
+                </p>
+            </div>
+            <div class="nav-panel">
+                <p class="nav-label fg-gold">EXAM PREP</p>
+                <button class="nav-btn nav-exam active" id="nav-home" data-nav="home">Quick Start</button>
+                <button class="nav-btn nav-exam" id="nav-cheat" data-nav="cheat">Master Cheat Sheet</button>
+                <button class="nav-btn nav-exam" id="nav-traps" data-nav="traps">Dangerous Confusions</button>
+                <button class="nav-btn nav-exam" id="nav-simulator" data-nav="simulator">MCQ Simulator</button>
+                <button class="nav-btn nav-exam" id="nav-strategy" data-nav="strategy">Test Strategy</button>
+            </div>
+            <details class="nav-module">
+                <summary class="nav-module-summary fg-l1"><span>LECTURE 1</span><span class="chevron">⌄</span></summary>
+                <div class="nav-module-body">
+                    <button class="nav-btn nav-l1" id="nav-l1-what" data-nav="l1-what">What ML actually is</button>
+                    <button class="nav-btn nav-l1" id="nav-l1-types" data-nav="l1-types">Supervised · Unsupervised · RL</button>
+                    <button class="nav-btn nav-l1" id="nav-l1-how" data-nav="l1-how">Batch · Online · Instance · Model</button>
+                    <button class="nav-btn nav-l1" id="nav-l1-fail" data-nav="l1-fail">Overfitting & bad data</button>
+                    <button class="nav-btn nav-l1" id="nav-l1-frameworks" data-nav="l1-frameworks">KDD · CRISP-DM · SEMMA</button>
+                    <button class="nav-btn nav-l1" id="nav-l1-notes" data-nav="l1-notes">Full intuitive explanation</button>
+                    <button class="nav-btn nav-l1" id="nav-l1-subjective" data-nav="l1-subjective">Subjective exam prep</button>
+                    <button class="nav-btn nav-l1" id="nav-l1-prep" data-nav="l1-prep">MCQ prep</button>
+                </div>
+            </details>
+            <details class="nav-module">
+                <summary class="nav-module-summary fg-l2"><span>LECTURE 2</span><span class="chevron">⌄</span></summary>
+                <div class="nav-module-body">
+                    <button class="nav-btn nav-l2" id="nav-l2-pipeline" data-nav="l2-pipeline">CRISP-DM vs pipeline</button>
+                    <button class="nav-btn nav-l2" id="nav-l2-data" data-nav="l2-data">Data sources & types</button>
+                    <button class="nav-btn nav-l2" id="nav-l2-wrangle" data-nav="l2-wrangle">Inspect, clean, fix</button>
+                    <button class="nav-btn nav-l2" id="nav-l2-transform" data-nav="l2-transform">Encoding, scaling, text</button>
+                    <button class="nav-btn nav-l2" id="nav-l2-explore" data-nav="l2-explore">groupby & charts</button>
+                    <button class="nav-btn nav-l2" id="nav-l2-leakage" data-nav="l2-leakage">Leakage & full example</button>
+                    <button class="nav-btn nav-l2" id="nav-l2-notes" data-nav="l2-notes">Full intuitive explanation</button>
+                    <button class="nav-btn nav-l2" id="nav-l2-subjective" data-nav="l2-subjective">Subjective exam prep</button>
+                    <button class="nav-btn nav-l2" id="nav-l2-prep" data-nav="l2-prep">MCQ prep</button>
+                </div>
+            </details>
+            <details class="nav-module">
+                <summary class="nav-module-summary fg-l3"><span>LECTURE 3</span><span class="chevron">⌄</span></summary>
+                <div class="nav-module-body">
+                    <button class="nav-btn nav-l3" id="nav-l3-why" data-nav="l3-why">Why features matter</button>
+                    <button class="nav-btn nav-l3" id="nav-l3-numeric" data-nav="l3-numeric">Binarize, round, interact</button>
+                    <button class="nav-btn nav-l3" id="nav-l3-binning" data-nav="l3-binning">Fixed vs quantile bins</button>
+                    <button class="nav-btn nav-l3" id="nav-l3-transform" data-nav="l3-transform">Log & Box-Cox</button>
+                    <button class="nav-btn nav-l3" id="nav-l3-categorical" data-nav="l3-categorical">Encoding categories</button>
+                    <button class="nav-btn nav-l3" id="nav-l3-notes" data-nav="l3-notes">Full intuitive explanation</button>
+                    <button class="nav-btn nav-l3" id="nav-l3-subjective" data-nav="l3-subjective">Subjective exam prep</button>
+                    <button class="nav-btn nav-l3" id="nav-l3-prep" data-nav="l3-prep">MCQ prep</button>
+                </div>
+            </details>
+            <details class="nav-module">
+                <summary class="nav-module-summary fg-l4"><span>LECTURE 4</span><span class="chevron">⌄</span></summary>
+                <div class="nav-module-body">
+                    <button class="nav-btn nav-l4" id="nav-l4-text" data-nav="l4-text">Cleaning text</button>
+                    <button class="nav-btn nav-l4" id="nav-l4-vectors" data-nav="l4-vectors">BoW, TF-IDF, embeddings</button>
+                    <button class="nav-btn nav-l4" id="nav-l4-time" data-nav="l4-time">Dates & time zones</button>
+                    <button class="nav-btn nav-l4" id="nav-l4-pixels" data-nav="l4-pixels">Images as numbers</button>
+                    <button class="nav-btn nav-l4" id="nav-l4-vision" data-nav="l4-vision">HOG, SURF, VBoW, CNNs</button>
+                    <button class="nav-btn nav-l4" id="nav-l4-together" data-nav="l4-together">Putting L3 & L4 together</button>
+                    <button class="nav-btn nav-l4" id="nav-l4-notes" data-nav="l4-notes">Full intuitive explanation</button>
+                    <button class="nav-btn nav-l4" id="nav-l4-subjective" data-nav="l4-subjective">Subjective exam prep</button>
+                    <button class="nav-btn nav-l4" id="nav-l4-prep" data-nav="l4-prep">MCQ prep</button>
+                </div>
+            </details>
+        </aside>
+        <button aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation" class="mobile-menu" id="mobile-menu" data-action="toggle-sidebar"><span class="bars" aria-hidden="true"></span></button>
+        <button type="button" class="contents-fab" id="contents-fab" data-action="contents" title="Back to the section list" hidden>↑ Contents</button>
+        <main class="main">
+            <div class="content">
+                <div class="topbar">
+                    <button data-action="print">Print current page</button>
+                    <button data-action="reset-progress">↺ Reset progress</button>
+                </div>
+                <section class="page-section hidden" data-page="home" id="sec-home"></section>
+                <section class="page-section hidden" data-page="cheat" id="sec-cheat"></section>
+                <section class="page-section hidden" data-page="traps" id="sec-traps"></section>
+                <section class="page-section hidden" data-page="simulator" id="sec-simulator"></section>
+                <section class="page-section hidden" data-page="strategy" id="sec-strategy"></section>
+                <section class="page-section hidden" data-page="l1-what" id="sec-l1-what"></section>
+                <section class="page-section hidden" data-page="l1-types" id="sec-l1-types"></section>
+                <section class="page-section hidden" data-page="l1-how" id="sec-l1-how"></section>
+                <section class="page-section hidden" data-page="l1-fail" id="sec-l1-fail"></section>
+                <section class="page-section hidden" data-page="l1-frameworks" id="sec-l1-frameworks"></section>
+                <section class="page-section hidden" data-page="l1-notes" id="sec-l1-notes"></section>
+                <section class="page-section hidden" data-page="l1-subjective" id="sec-l1-subjective"></section>
+                <section class="page-section hidden" data-page="l1-prep" id="sec-l1-prep"></section>
+                <section class="page-section hidden" data-page="l2-pipeline" id="sec-l2-pipeline"></section>
+                <section class="page-section hidden" data-page="l2-data" id="sec-l2-data"></section>
+                <section class="page-section hidden" data-page="l2-wrangle" id="sec-l2-wrangle"></section>
+                <section class="page-section hidden" data-page="l2-transform" id="sec-l2-transform"></section>
+                <section class="page-section hidden" data-page="l2-explore" id="sec-l2-explore"></section>
+                <section class="page-section hidden" data-page="l2-leakage" id="sec-l2-leakage"></section>
+                <section class="page-section hidden" data-page="l2-notes" id="sec-l2-notes"></section>
+                <section class="page-section hidden" data-page="l2-subjective" id="sec-l2-subjective"></section>
+                <section class="page-section hidden" data-page="l2-prep" id="sec-l2-prep"></section>
+                <section class="page-section hidden" data-page="l3-why" id="sec-l3-why"></section>
+                <section class="page-section hidden" data-page="l3-numeric" id="sec-l3-numeric"></section>
+                <section class="page-section hidden" data-page="l3-binning" id="sec-l3-binning"></section>
+                <section class="page-section hidden" data-page="l3-transform" id="sec-l3-transform"></section>
+                <section class="page-section hidden" data-page="l3-categorical" id="sec-l3-categorical"></section>
+                <section class="page-section hidden" data-page="l3-notes" id="sec-l3-notes"></section>
+                <section class="page-section hidden" data-page="l3-subjective" id="sec-l3-subjective"></section>
+                <section class="page-section hidden" data-page="l3-prep" id="sec-l3-prep"></section>
+                <section class="page-section hidden" data-page="l4-text" id="sec-l4-text"></section>
+                <section class="page-section hidden" data-page="l4-vectors" id="sec-l4-vectors"></section>
+                <section class="page-section hidden" data-page="l4-time" id="sec-l4-time"></section>
+                <section class="page-section hidden" data-page="l4-pixels" id="sec-l4-pixels"></section>
+                <section class="page-section hidden" data-page="l4-vision" id="sec-l4-vision"></section>
+                <section class="page-section hidden" data-page="l4-together" id="sec-l4-together"></section>
+                <section class="page-section hidden" data-page="l4-notes" id="sec-l4-notes"></section>
+                <section class="page-section hidden" data-page="l4-subjective" id="sec-l4-subjective"></section>
+                <section class="page-section hidden" data-page="l4-prep" id="sec-l4-prep"></section>
+
+            </div>
+        </main>
+    </div>
+</body>
+</html>

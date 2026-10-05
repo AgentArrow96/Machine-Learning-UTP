@@ -1,0 +1,49 @@
+name: Deploy study site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - app/index.html
+      - app/assets/**
+      - .github/workflows/deploy-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Publish only the built site, not the notes, PDFs or build tools in app/.
+      - name: Stage site
+        run: |
+          mkdir -p _site
+          cp app/index.html _site/index.html
+          cp -r app/assets _site/assets
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
