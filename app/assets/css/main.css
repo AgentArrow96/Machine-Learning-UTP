@@ -1561,6 +1561,10 @@
             overflow: hidden;
         }
 
+        .study-grid > .analogy-box {
+            align-self: start;
+        }
+
         .analogy-box::after {
             content: '';
             position: absolute;
@@ -2110,6 +2114,7 @@
 
         .lesson-body > .card,
         .lesson-body > .compare-box,
+        .lesson-body > .analogy-box,
         .lesson-body > .teach-panel,
         .lesson-body > .study-grid { margin-bottom: 18px; }
 
@@ -2389,6 +2394,42 @@
 
         /* Page loading */
         .page-loading { color: #94a3b8; font-size: 13px; padding: 30px 4px; }
+
+        /* Visuals inside Dangerous Confusions */
+        .trap-visual { margin-top: 12px; }
+        .trap-visual > summary { cursor: pointer; display: inline-block; font-size: 12px; font-weight: 800; color: #b45309; border: 1px solid #fde68a; background: #fffbeb; border-radius: 999px; padding: 5px 12px; }
+        .trap-visual[open] > summary { margin-bottom: 4px; }
+        .trap-item:has(.trap-visual[open]) { grid-column: 1 / -1; }
+        .trap-visual .vis-figure { margin: 8px 0 0; }
+        .trap-visual .when-open, .trap-visual[open] .when-closed { display: none; }
+        .trap-visual[open] .when-open { display: inline; }
+
+        /* Difficult mode */
+        .bloom-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+        .quiz-card > .bloom-badges { margin: 12px 0 -6px; }
+        .bloom-chip, .ext-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .02em; border: 1px solid transparent; white-space: nowrap; }
+        .bloom-1 { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+        .bloom-2 { background: #f0fdfa; color: #0f766e; border-color: #99f6e4; }
+        .bloom-3 { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+        .bloom-4 { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+        .bloom-5 { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+        .bloom-6 { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+        .ext-badge { background: #0f172a; color: #fde68a; border-color: #0f172a; }
+        .hard-intro { color: #475569; font-size: 13px; margin: 0 0 10px; }
+        .hard-level { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 20px 0 4px; }
+        .hard-level small { color: #64748b; font-weight: 600; font-size: 12px; }
+        .hard-question .qno { min-width: 30px; }
+        .hard-question > summary > div { min-width: 0; }
+        .hard-question > summary p { margin: 0 0 6px; }
+        .hard-best { color: #64748b; font-size: 11px; margin: -4px 0 10px; }
+        .quiz-mode-note { color: #64748b; font-size: 11px; line-height: 1.45; margin: 8px 0 0; }
+        .bloom-results { display: grid; gap: 8px; max-width: 420px; margin: 16px auto 4px; text-align: left; }
+        .bloom-result { display: grid; grid-template-columns: 110px 52px 1fr; align-items: center; gap: 10px; font-size: 12px; }
+        .bloom-result > span { text-align: center; }
+        .bloom-bar { height: 8px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+        .bloom-bar i { display: block; height: 100%; width: 0; background: #d97706; border-radius: 99px; transition: width .4s; }
+        @media (max-width: 480px) { .bloom-result { grid-template-columns: 96px 44px 1fr; gap: 6px; } }
+        .bloom-note { color: #94a3b8; font-size: 11px; margin: 2px 0 0; text-align: center; }
 
         /* Helper classes (generated from former inline styles) */
         .ta-r { text-align: right; }

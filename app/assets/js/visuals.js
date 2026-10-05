@@ -291,11 +291,13 @@ ML_VIS.l1_overfit = function (root) {
     root.append(V.h('div', { class: 'vis-row' }, V.slider('Model complexity (polynomial degree)', 1, D, 1, deg, v => { deg = v; draw(); })),
         V.h('div', { class: 'vis-split' }, svg, curve), read,
         V.h('p', { class: 'vis-note' }, '● training points (the model sees these) · ○ test points (unseen). Errors are mean squared error.'));
-    const sx = x => 30 + (x + 1) / 2 * (W - 50), sy = y => H / 2 - y * (H / 2 - 25);
+    // Fit the y-axis to all points so none are cut off
+    const ys = train.concat(test).map(p => p.y), yLo = Math.min(...ys) - 0.15, yHi = Math.max(...ys) + 0.15, PAD = 14;
+    const sx = x => 30 + (x + 1) / 2 * (W - 50), sy = y => PAD + (yHi - y) / (yHi - yLo) * (H - 2 * PAD);
     function draw() {
         V.clear(svg); V.clear(curve); const rr = V.rng(5);
-        V.rline(svg, 20, H / 2, W - 10, H / 2, '#e2e8f0', 1, rr);
-        let d = ''; for (let i = 0; i <= 200; i++) { const x = -1 + 2 * i / 200, y = Math.max(-1.6, Math.min(1.6, pred(models[deg], x))); d += (i ? 'L' : 'M') + sx(x) + ' ' + sy(y); }
+        V.rline(svg, 20, sy(0), W - 10, sy(0), '#e2e8f0', 1, rr);
+        let d = ''; for (let i = 0; i <= 200; i++) { const x = -1 + 2 * i / 200, y = Math.max(yLo - 1, Math.min(yHi + 1, pred(models[deg], x))); d += (i ? 'L' : 'M') + sx(x) + ' ' + sy(y); }
         svg.append(V.s('path', { d, fill: 'none', stroke: deg <= 2 ? V.C.violet : deg >= 8 ? V.C.rose : V.C.green, 'stroke-width': 3, 'stroke-linecap': 'round' }));
         test.forEach(p => svg.append(V.s('circle', { cx: sx(p.x), cy: sy(p.y), r: 4.5, fill: '#fff', stroke: V.C.amber, 'stroke-width': 2 })));
         train.forEach(p => svg.append(V.s('circle', { cx: sx(p.x), cy: sy(p.y), r: 5.5, fill: V.C.sky })));

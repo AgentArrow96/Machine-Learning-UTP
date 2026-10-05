@@ -71,12 +71,13 @@
             else if (d.toc) tocGo(el, d.toc);
             else if (d.jump) jumpTo(d.jump);
             else if (d.sections) toggleSections(el, d.sections === 'open');
-            else if (d.quiz) launchModuleQuiz(Number(d.quiz));
+            else if (d.quiz) launchModuleQuiz(Number(d.quiz), d.quizMode);
             else if (d.learned) markLearned(Number(d.learned));
             else if (d.option) selectOption(d.option);
             else if (ACTIONS[d.action]) ACTIONS[d.action]();
         });
         document.addEventListener('input', e => { if (e.target.matches('.toc-search')) tocFilter(e.target); });
+        document.addEventListener('change', e => { if (e.target.id === 'quiz-mode') updateModeNote(); });
 
         // Diagrams
         function fillDiagrams(root) {
@@ -111,8 +112,9 @@
             if (box) box.querySelectorAll('details.note-section').forEach(d => d.open = open);
         }
 
-        const QUESTION_BANK = window.QUESTION_BANK || [];
-        let quizQuestions = [], quizIndex = 0, quizCorrect = 0, quizAnswered = 0, selectedAnswers = new Set(), lastMistakes = [], currentMistakes = [];
+        const QUESTION_BANK = window.QUESTION_BANK || [], DIFFICULT_BANK = window.DIFFICULT_BANK || [];
+        const BLOOM = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'];
+        let quizQuestions = [], quizIndex = 0, quizCorrect = 0, quizAnswered = 0, selectedAnswers = new Set(), lastMistakes = [], currentMistakes = [], quizLog = [], quizMode = 'standard';
 
         // Page loading: each page's content lives in assets/pages/<id>.js and calls ML_PAGE when loaded
         const pageLoads = {}, pageReady = {};
@@ -185,16 +187,39 @@
                 const x = p[n] || { learned: false, best: 0 }; const pct = Math.round(((x.learned ? 1 : 0) + (x.best >= 80 ? 1 : 0)) / 2 * 100);
                 const status = document.getElementById('status-m' + n), best = document.getElementById('best-m' + n), fill = document.getElementById('progress-m' + n);
                 if (status) status.textContent = x.learned ? 'Learned' : 'Not learned'; if (best) best.textContent = 'Best: ' + (x.best || 0) + '%'; if (fill) fill.style.width = pct + '%';
+                const hard = document.getElementById('hard-m' + n); if (hard) hard.textContent = x.hard != null ? 'Difficult best: ' + x.hard + '%' : 'Difficult mode: not tried';
             }
         }
         function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
-        function launchModuleQuiz(n) { return navTo('simulator').then(() => { document.getElementById('quiz-module').value = String(n); document.getElementById('quiz-count').value = '20'; startQuiz(); }); }
+        function launchModuleQuiz(n, mode) {
+            return navTo('simulator').then(() => {
+                mode = mode || 'standard';
+                document.getElementById('quiz-mode').value = mode; document.getElementById('quiz-module').value = String(n);
+                document.getElementById('quiz-count').value = mode === 'standard' ? '20' : 'all';
+                document.getElementById('quiz-order').value = mode === 'standard' ? 'shuffle' : 'sequence';
+                updateModeNote(); startQuiz();
+            });
+        }
+        function updateModeNote() { const note = document.getElementById('quiz-mode-note'); if (note) note.hidden = document.getElementById('quiz-mode').value === 'standard'; }
+        // Difficult mode: lowest Bloom level first; Bloom-graded before extensions within a level
+        function bloomOrder(pool, mix) {
+            const key = q => q.bloom_rank * 2 + (q.ext ? 1 : 0);
+            if (mix) return shuffle(pool).sort((a, b) => a.bloom_rank - b.bloom_rank);
+            return [...pool].sort((a, b) => key(a) - key(b) || a.module - b.module || Number(a.number.slice(1)) - Number(b.number.slice(1)));
+        }
         function startQuiz(custom = null) {
             const mod = document.getElementById('quiz-module').value, count = document.getElementById('quiz-count').value, order = document.getElementById('quiz-order').value;
-            let pool = custom ? [...custom] : QUESTION_BANK.filter(q => mod === 'all' || String(q.module) === mod);
-            if (order === 'shuffle' || custom) pool = shuffle(pool); else pool.sort((a, b) => a.module - b.module || a.number - b.number);
-            if (count !== 'all' && !custom) pool = pool.slice(0, Number(count));
-            quizQuestions = pool; quizIndex = 0; quizCorrect = 0; quizAnswered = 0; currentMistakes = []; selectedAnswers = new Set();
+            if (!custom) quizMode = document.getElementById('quiz-mode').value;
+            const hard = quizMode !== 'standard';
+            let pool = custom ? [...custom] : (hard ? DIFFICULT_BANK : QUESTION_BANK).filter(q => (mod === 'all' || String(q.module) === mod) && (quizMode !== 'extensions' || q.ext));
+            if (hard) {
+                if (count !== 'all' && !custom) pool = shuffle(pool).slice(0, Number(count));
+                pool = bloomOrder(pool, order === 'shuffle' || !!custom);
+            } else {
+                if (order === 'shuffle' || custom) pool = shuffle(pool); else pool.sort((a, b) => a.module - b.module || a.number - b.number);
+                if (count !== 'all' && !custom) pool = pool.slice(0, Number(count));
+            }
+            quizQuestions = pool; quizIndex = 0; quizCorrect = 0; quizAnswered = 0; currentMistakes = []; quizLog = []; selectedAnswers = new Set();
             document.getElementById('retry-btn').style.display = 'none'; updateQuizStats(); renderQuestion();
         }
         function retryMistakes() { if (!lastMistakes.length) return; document.getElementById('quiz-count').value = 'all'; startQuiz(lastMistakes); }
@@ -205,7 +230,8 @@
             if (quizIndex >= quizQuestions.length) { renderResults(); return; }
             const q = quizQuestions[quizIndex]; selectedAnswers = new Set();
             const options = q.options.map(([letter, text]) => `<button class="quiz-option" data-letter="${letter}" data-option="${letter}"><span class="letter">${letter}</span><span>${text}</span></button>`).join('');
-            card.innerHTML = `<div class="quiz-meta"><span>Lecture ${q.module} · Question ${q.number}</span><span>${quizIndex + 1} of ${quizQuestions.length}</span></div><div class="quiz-question">${q.question}</div><div class="quiz-options">${options}</div><div class="quiz-footer"><span class="quiz-hint">${q.multiple ? 'Select all required responses, then submit.' : 'Select one response.'}</span>${q.multiple ? '<button class="primary-btn" id="submit-multi" data-action="submit">Submit selections</button>' : ''}</div><div id="quiz-feedback"></div>`;
+            const badges = q.bloom ? `<div class="bloom-badges"><span class="bloom-chip bloom-${q.bloom_rank}">${q.bloom}</span>${q.ext ? `<span class="ext-badge">Extension · ${q.ext}</span>` : ''}</div>` : '';
+            card.innerHTML = `<div class="quiz-meta"><span>Lecture ${q.module} · ${q.bloom ? q.number : 'Question ' + q.number}</span><span>${quizIndex + 1} of ${quizQuestions.length}</span></div>${badges}<div class="quiz-question">${q.question}</div><div class="quiz-options">${options}</div><div class="quiz-footer"><span class="quiz-hint">${q.multiple ? 'Select all required responses, then submit.' : 'Select one response.'}</span>${q.multiple ? '<button class="primary-btn" id="submit-multi" data-action="submit">Submit selections</button>' : ''}</div><div id="quiz-feedback"></div>`;
             renderMath(card);
             document.getElementById('quiz-progress').style.width = ((quizIndex) / quizQuestions.length * 100) + '%';
         }
@@ -217,7 +243,7 @@
         function sameSet(a, b) { return a.size === b.size && [...a].every(x => b.has(x)); }
         function submitAnswer() {
             const q = quizQuestions[quizIndex]; if (!selectedAnswers.size) return;
-            const correctSet = new Set(q.answers), isCorrect = sameSet(selectedAnswers, correctSet); quizAnswered++; if (isCorrect) quizCorrect++; else currentMistakes.push(q);
+            const correctSet = new Set(q.answers), isCorrect = sameSet(selectedAnswers, correctSet); quizAnswered++; quizLog.push([q, isCorrect]); if (isCorrect) quizCorrect++; else currentMistakes.push(q);
             document.querySelectorAll('.quiz-option').forEach(btn => { const l = btn.dataset.letter; btn.disabled = true; btn.classList.remove('selected'); if (correctSet.has(l)) btn.classList.add('correct'); else if (selectedAnswers.has(l)) btn.classList.add('incorrect'); });
             const submit = document.getElementById('submit-multi'); if (submit) submit.style.display = 'none';
             const fb = document.getElementById('quiz-feedback'); fb.className = 'quiz-feedback ' + (isCorrect ? 'good' : 'bad'); fb.innerHTML = `<strong>${isCorrect ? 'Correct.' : 'Not quite.'} Answer: ${q.answers.join(', ')}</strong><div style="margin-top:5px">${q.explanation || ''}</div><div style="margin-top:12px"><button class="primary-btn" data-action="next">${quizIndex + 1 === quizQuestions.length ? 'View result' : 'Next question →'}</button></div>`;
@@ -229,9 +255,21 @@
         function renderResults() {
             const pct = quizAnswered ? Math.round(quizCorrect / quizAnswered * 100) : 0; lastMistakes = [...currentMistakes];
             document.getElementById('retry-btn').style.display = lastMistakes.length ? 'block' : 'none';
-            const lectures = [...new Set(quizQuestions.map(q => q.module))]; if (lectures.length === 1) { const n = lectures[0], p = getProgress(); p[n] = p[n] || { learned: false, best: 0 }; p[n].best = Math.max(p[n].best || 0, pct); saveProgress(p); }
+            const lectures = [...new Set(quizQuestions.map(q => q.module))], hard = quizQuestions.some(q => q.bloom);
+            if (lectures.length === 1 && (!hard || quizMode === 'difficult')) {
+                const n = lectures[0], p = getProgress(); p[n] = p[n] || { learned: false, best: 0 };
+                if (hard) p[n].hard = Math.max(p[n].hard || 0, pct); else p[n].best = Math.max(p[n].best || 0, pct);
+                saveProgress(p);
+            }
+            let levels = '';
+            if (hard) {
+                const rows = BLOOM.map((b, i) => [b, 'bloom-chip bloom-' + (i + 1), quizLog.filter(([q]) => q.bloom === b)]);
+                rows.push(['Extensions', 'ext-badge', quizLog.filter(([q]) => q.ext)]);
+                levels = '<div class="bloom-results">' + rows.filter(r => r[2].length).map(([b, cls, xs]) => { const ok = xs.filter(x => x[1]).length; return `<div class="bloom-result"><span class="${cls}">${b}</span><strong>${ok} / ${xs.length}</strong><div class="bloom-bar"><i data-w="${Math.round(ok / xs.length * 100)}"></i></div></div>`; }).join('') + '<p class="bloom-note">Each Bloom row counts every question at that level, extensions included.</p></div>';
+            }
             const label = pct >= 90 ? 'Strongly prepared' : pct >= 80 ? 'Nearly ready' : pct >= 65 ? 'Core knowledge is present' : 'Review the weak concepts before retesting';
-            document.getElementById('quiz-card').innerHTML = `<div style="text-align:center"><div class="result-circle"><div><strong>${pct}%</strong><div style="font-size:11px;color:#64748b">${quizCorrect} / ${quizAnswered}</div></div></div><h3 style="font-size:27px;color:#0f172a;margin:0 0 6px">${label}</h3><p style="color:#64748b">Missed questions: ${lastMistakes.length}. ${lastMistakes.length ? 'Use Retry missed questions to repair only the gaps.' : 'No mistakes. Try a larger mixed test.'}</p><div class="action-row" style="justify-content:center"><button class="primary-btn" data-action="start-quiz">Retake / reshuffle</button>${lastMistakes.length ? '<button class="secondary-btn" data-action="retry">Retry mistakes</button>' : ''}</div></div>`;
+            document.getElementById('quiz-card').innerHTML = `<div style="text-align:center"><div class="result-circle"><div><strong>${pct}%</strong><div style="font-size:11px;color:#64748b">${quizCorrect} / ${quizAnswered}</div></div></div><h3 style="font-size:27px;color:#0f172a;margin:0 0 6px">${label}</h3><p style="color:#64748b">Missed questions: ${lastMistakes.length}. ${lastMistakes.length ? 'Use Retry missed questions to repair only the gaps.' : 'No mistakes. Try a larger mixed test.'}</p>${levels}<div class="action-row" style="justify-content:center"><button class="primary-btn" data-action="start-quiz">Retake / reshuffle</button>${lastMistakes.length ? '<button class="secondary-btn" data-action="retry">Retry mistakes</button>' : ''}</div></div>`;
+            document.querySelectorAll('.bloom-bar i').forEach(i => { i.style.width = i.dataset.w + '%'; });
             document.getElementById('quiz-progress').style.width = '100%'; updateQuizStats();
         }
 
