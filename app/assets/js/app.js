@@ -112,7 +112,7 @@
             if (box) box.querySelectorAll('details.note-section').forEach(d => d.open = open);
         }
 
-        const QUESTION_BANK = window.QUESTION_BANK || [], DIFFICULT_BANK = window.DIFFICULT_BANK || [];
+        const QUESTION_BANK = window.QUESTION_BANK || [], DIFFICULT_BANK = window.DIFFICULT_BANK || [], HARD_BANK = window.HARD_BANK || [];
         const BLOOM = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'];
         let quizQuestions = [], quizIndex = 0, quizCorrect = 0, quizAnswered = 0, selectedAnswers = new Set(), lastMistakes = [], currentMistakes = [], quizLog = [], quizMode = 'standard';
 
@@ -137,7 +137,7 @@
             if (sec.dataset.loaded) return Promise.resolve(sec);
             if (!pageLoads[id]) pageLoads[id] = new Promise(resolve => {
                 pageReady[id] = () => resolve(sec);
-                sec.innerHTML = '<p class="page-loading">Loading…</p>';
+                sec.innerHTML = '<p class="page-loading">Loading...</p>';
                 const s = document.createElement('script');
                 s.src = 'assets/pages/' + id + '.js';
                 s.onerror = () => { sec.innerHTML = '<p class="page-loading">Could not load this page.</p>'; resolve(sec); };
@@ -187,7 +187,8 @@
                 const x = p[n] || { learned: false, best: 0 }; const pct = Math.round(((x.learned ? 1 : 0) + (x.best >= 80 ? 1 : 0)) / 2 * 100);
                 const status = document.getElementById('status-m' + n), best = document.getElementById('best-m' + n), fill = document.getElementById('progress-m' + n);
                 if (status) status.textContent = x.learned ? 'Learned' : 'Not learned'; if (best) best.textContent = 'Best: ' + (x.best || 0) + '%'; if (fill) fill.style.width = pct + '%';
-                const hard = document.getElementById('hard-m' + n); if (hard) hard.textContent = x.hard != null ? 'Difficult best: ' + x.hard + '%' : 'Difficult mode: not tried';
+                const hard = document.getElementById('hard-m' + n);
+                if (hard) hard.textContent = 'Hard: ' + (x.hardTwin != null ? x.hardTwin + '%' : 'not tried') + ' · Bloom: ' + (x.hard != null ? x.hard + '%' : 'not tried');
             }
         }
         function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -196,12 +197,13 @@
                 mode = mode || 'standard';
                 document.getElementById('quiz-mode').value = mode; document.getElementById('quiz-module').value = String(n);
                 document.getElementById('quiz-count').value = mode === 'standard' ? '20' : 'all';
-                document.getElementById('quiz-order').value = mode === 'standard' ? 'shuffle' : 'sequence';
+                document.getElementById('quiz-order').value = mode === 'standard' || mode === 'hard' ? 'shuffle' : 'sequence';
                 updateModeNote(); startQuiz();
             });
         }
-        function updateModeNote() { const note = document.getElementById('quiz-mode-note'); if (note) note.hidden = document.getElementById('quiz-mode').value === 'standard'; }
-        // Difficult mode: lowest Bloom level first; Bloom-graded before extensions within a level
+        function updateModeNote() { const note = document.getElementById('quiz-mode-note'); if (note) note.hidden = !isBloomMode(document.getElementById('quiz-mode').value); }
+        function isBloomMode(mode) { return mode === 'difficult' || mode === 'extensions'; }
+        // Bloom challenge: lowest Bloom level first; Bloom-graded before extensions within a level
         function bloomOrder(pool, mix) {
             const key = q => q.bloom_rank * 2 + (q.ext ? 1 : 0);
             if (mix) return shuffle(pool).sort((a, b) => a.bloom_rank - b.bloom_rank);
@@ -210,13 +212,14 @@
         function startQuiz(custom = null) {
             const mod = document.getElementById('quiz-module').value, count = document.getElementById('quiz-count').value, order = document.getElementById('quiz-order').value;
             if (!custom) quizMode = document.getElementById('quiz-mode').value;
-            const hard = quizMode !== 'standard';
-            let pool = custom ? [...custom] : (hard ? DIFFICULT_BANK : QUESTION_BANK).filter(q => (mod === 'all' || String(q.module) === mod) && (quizMode !== 'extensions' || q.ext));
-            if (hard) {
+            const bloom = isBloomMode(quizMode), source = bloom ? DIFFICULT_BANK : quizMode === 'hard' ? HARD_BANK : QUESTION_BANK;
+            let pool = custom ? [...custom] : source.filter(q => (mod === 'all' || String(q.module) === mod) && (quizMode !== 'extensions' || q.ext));
+            if (bloom) {
                 if (count !== 'all' && !custom) pool = shuffle(pool).slice(0, Number(count));
                 pool = bloomOrder(pool, order === 'shuffle' || !!custom);
             } else {
-                if (order === 'shuffle' || custom) pool = shuffle(pool); else pool.sort((a, b) => a.module - b.module || a.number - b.number);
+                const no = q => q.twin || q.number;
+                if (order === 'shuffle' || custom) pool = shuffle(pool); else pool.sort((a, b) => a.module - b.module || no(a) - no(b));
                 if (count !== 'all' && !custom) pool = pool.slice(0, Number(count));
             }
             quizQuestions = pool; quizIndex = 0; quizCorrect = 0; quizAnswered = 0; currentMistakes = []; quizLog = []; selectedAnswers = new Set();
@@ -230,8 +233,9 @@
             if (quizIndex >= quizQuestions.length) { renderResults(); return; }
             const q = quizQuestions[quizIndex]; selectedAnswers = new Set();
             const options = q.options.map(([letter, text]) => `<button class="quiz-option" data-letter="${letter}" data-option="${letter}"><span class="letter">${letter}</span><span>${text}</span></button>`).join('');
-            const badges = q.bloom ? `<div class="bloom-badges"><span class="bloom-chip bloom-${q.bloom_rank}">${q.bloom}</span>${q.ext ? `<span class="ext-badge">Extension · ${q.ext}</span>` : ''}</div>` : '';
-            card.innerHTML = `<div class="quiz-meta"><span>Lecture ${q.module} · ${q.bloom ? q.number : 'Question ' + q.number}</span><span>${quizIndex + 1} of ${quizQuestions.length}</span></div>${badges}<div class="quiz-question">${q.question}</div><div class="quiz-options">${options}</div><div class="quiz-footer"><span class="quiz-hint">${q.multiple ? 'Select all required responses, then submit.' : 'Select one response.'}</span>${q.multiple ? '<button class="primary-btn" id="submit-multi" data-action="submit">Submit selections</button>' : ''}</div><div id="quiz-feedback"></div>`;
+            const badges = q.bloom ? `<div class="bloom-badges"><span class="bloom-chip bloom-${q.bloom_rank}">${q.bloom}</span>${q.ext ? `<span class="ext-badge">Extension · ${q.ext}</span>` : ''}</div>`
+                : q.twin ? `<div class="bloom-badges"><span class="twin-badge">Hard · harder version of Q${q.twin}</span></div>` : '';
+            card.innerHTML = `<div class="quiz-meta"><span>Lecture ${q.module} · ${q.bloom || q.twin ? q.number : 'Question ' + q.number}</span><span>${quizIndex + 1} of ${quizQuestions.length}</span></div>${badges}<div class="quiz-question">${q.question}</div><div class="quiz-options">${options}</div><div class="quiz-footer"><span class="quiz-hint">${q.multiple ? 'Select all required responses, then submit.' : 'Select one response.'}</span>${q.multiple ? '<button class="primary-btn" id="submit-multi" data-action="submit">Submit selections</button>' : ''}</div><div id="quiz-feedback"></div>`;
             renderMath(card);
             document.getElementById('quiz-progress').style.width = ((quizIndex) / quizQuestions.length * 100) + '%';
         }
@@ -246,9 +250,16 @@
             const correctSet = new Set(q.answers), isCorrect = sameSet(selectedAnswers, correctSet); quizAnswered++; quizLog.push([q, isCorrect]); if (isCorrect) quizCorrect++; else currentMistakes.push(q);
             document.querySelectorAll('.quiz-option').forEach(btn => { const l = btn.dataset.letter; btn.disabled = true; btn.classList.remove('selected'); if (correctSet.has(l)) btn.classList.add('correct'); else if (selectedAnswers.has(l)) btn.classList.add('incorrect'); });
             const submit = document.getElementById('submit-multi'); if (submit) submit.style.display = 'none';
-            const fb = document.getElementById('quiz-feedback'); fb.className = 'quiz-feedback ' + (isCorrect ? 'good' : 'bad'); fb.innerHTML = `<strong>${isCorrect ? 'Correct.' : 'Not quite.'} Answer: ${q.answers.join(', ')}</strong><div style="margin-top:5px">${q.explanation || ''}</div><div style="margin-top:12px"><button class="primary-btn" data-action="next">${quizIndex + 1 === quizQuestions.length ? 'View result' : 'Next question →'}</button></div>`;
+            const fb = document.getElementById('quiz-feedback'); fb.className = 'quiz-feedback ' + (isCorrect ? 'good' : 'bad'); fb.innerHTML = `<strong>${isCorrect ? 'Correct.' : 'Not quite.'} Answer: ${q.answers.join(', ')}</strong><div style="margin-top:5px">${q.explanation || ''}</div>${twinCompare(q)}<div style="margin-top:12px"><button class="primary-btn" data-action="next">${quizIndex + 1 === quizQuestions.length ? 'View result' : 'Next question →'}</button></div>`;
             renderMath(fb);
             updateQuizStats(); document.getElementById('quiz-progress').style.width = ((quizIndex + 1) / quizQuestions.length * 100) + '%';
+        }
+        // Hard mode: show the standard question the twin was built from
+        function twinCompare(q) {
+            const o = q.twin && QUESTION_BANK.find(x => x.module === q.module && x.number === q.twin);
+            if (!o) return '';
+            const opts = o.options.map(([l, t]) => `<div class="bank-option"><b>${l}.</b> ${t}</div>`).join('');
+            return `<details class="twin-compare"><summary>Compare with the standard question (Q${o.number})</summary><div class="twin-compare-body"><div class="harder-question">${o.question}</div><div class="bank-options">${opts}</div><p><b>Answer: ${o.answers.join(', ')}</b></p></div></details>`;
         }
         function nextQuestion() { quizIndex++; renderQuestion(); }
         function updateQuizStats() { document.getElementById('quiz-score').textContent = quizCorrect + ' / ' + quizAnswered; document.getElementById('quiz-accuracy').textContent = (quizAnswered ? Math.round(quizCorrect / quizAnswered * 100) : 0) + '%'; }
@@ -256,9 +267,10 @@
             const pct = quizAnswered ? Math.round(quizCorrect / quizAnswered * 100) : 0; lastMistakes = [...currentMistakes];
             document.getElementById('retry-btn').style.display = lastMistakes.length ? 'block' : 'none';
             const lectures = [...new Set(quizQuestions.map(q => q.module))], hard = quizQuestions.some(q => q.bloom);
-            if (lectures.length === 1 && (!hard || quizMode === 'difficult')) {
+            const key = quizMode === 'difficult' ? 'hard' : quizMode === 'hard' ? 'hardTwin' : quizMode === 'standard' ? 'best' : null;
+            if (lectures.length === 1 && key) {
                 const n = lectures[0], p = getProgress(); p[n] = p[n] || { learned: false, best: 0 };
-                if (hard) p[n].hard = Math.max(p[n].hard || 0, pct); else p[n].best = Math.max(p[n].best || 0, pct);
+                p[n][key] = Math.max(p[n][key] || 0, pct);
                 saveProgress(p);
             }
             let levels = '';

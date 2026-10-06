@@ -79,7 +79,7 @@ const V = {
         w.append(...btns); return w;
     },
     btn(label, onClick, cls) { return V.h('button', { type: 'button', class: 'vis-btn ' + (cls || ''), onclick: onClick }, label); },
-    fmt(n, d = 2) { return Number.isFinite(n) ? Number(n.toFixed(d)).toLocaleString('en-US', { maximumFractionDigits: d }) : '—'; },
+    fmt(n, d = 2) { return Number.isFinite(n) ? Number(n.toFixed(d)).toLocaleString('en-US', { maximumFractionDigits: d }) : '-'; },
     clear(e) { while (e.firstChild) e.removeChild(e.firstChild); },
     median(a) { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; },
     mean(a) { return a.reduce((x, y) => x + y, 0) / a.length; },
@@ -118,7 +118,7 @@ const V = {
         canvas.addEventListener('pointermove', e => { if (!drag) return; theta += (e.clientX - drag[0]) * 0.01; phi = Math.min(2.9, Math.max(0.2, phi - (e.clientY - drag[1]) * 0.01)); drag = [e.clientX, e.clientY]; needs = true; });
         canvas.addEventListener('pointerup', () => { drag = null; });
         const zoom = d => { radius = Math.min(18, Math.max(2.5, radius * d)); needs = true; };
-        const bar = V.h('div', { class: 'vis-row vis-3dbar' }, V.btn('＋ zoom', () => zoom(0.85)), V.btn('－ zoom', () => zoom(1.18)), V.btn('⟳ auto-rotate', () => { auto = !auto; needs = true; }), V.h('span', { class: 'vis-note' }, 'Drag to rotate'));
+        const bar = V.h('div', { class: 'vis-row vis-3dbar' }, V.btn('+ zoom', () => zoom(0.85)), V.btn('- zoom', () => zoom(1.18)), V.btn('⟳ auto-rotate', () => { auto = !auto; needs = true; }), V.h('span', { class: 'vis-note' }, 'Drag to rotate'));
         host.append(bar);
         new IntersectionObserver(es => es.forEach(x => { visible = x.isIntersecting; if (visible) { resize(); loop(); } })).observe(canvas);
         window.addEventListener('resize', resize);
@@ -221,7 +221,7 @@ ML_VIS.l1_clusters3d = async function (root) {
         });
         phase = 'assign'; S.dirty();
         done = moved < 0.01;
-        info.textContent = done ? `Converged after ${iter} iterations — the centres stopped moving: three groups discovered without any labels.`
+        info.textContent = done ? `Converged after ${iter} iterations - the centres stopped moving: three groups discovered without any labels.`
             : `Iteration ${iter} · update: each centre moves to the average of its group (dashed trail = how far it moved: ${V.fmt(moved, 2)}).`;
         return done;
     }
@@ -314,7 +314,7 @@ ML_VIS.l1_overfit = function (root) {
         const best = errs.reduce((b, e, i) => (e && (!b || e[1] < errs[b][1]) ? i : b), 0);
         V.text(curve, cx(best), 14, 'sweet spot', { size: 12, color: V.C.green });
         const [tr, te] = errs[deg];
-        const verdict = deg <= 2 ? '<b style="color:#7c3aed">Underfitting</b> — too simple: both errors are high.' : te > 3 * Math.max(tr, 0.02) && deg >= 6 ? '<b style="color:#e11d48">Overfitting</b> — the curve chases the training points; test error grows.' : '<b style="color:#059669">Good generalization</b> — captures the trend, not the noise.';
+        const verdict = deg <= 2 ? '<b style="color:#7c3aed">Underfitting</b> - too simple: both errors are high.' : te > 3 * Math.max(tr, 0.02) && deg >= 6 ? '<b style="color:#e11d48">Overfitting</b> - the curve chases the training points; test error grows.' : '<b style="color:#059669">Good generalization</b> - captures the trend, not the noise.';
         read.innerHTML = `Degree ${deg}: training error <b>${V.fmt(tr, 3)}</b>, test error <b>${V.fmt(te, 3)}</b>. ${verdict}`;
     }
     draw();
@@ -341,7 +341,7 @@ ML_VIS.l2_impute = function (root) {
             V.text(svg, W - 12, sy(v) + (k ? 12 : -10), t, { size: 13, color: c, anchor: 'end' });
         });
         read.innerHTML = `Mean of the known prices = (100 + 120 + 110 + ${outlier}) / 4 = <b>${V.fmt(mean, 1)}</b>; median = <b>${V.fmt(med, 1)}</b>. ` +
-            (outlier > 300 ? `The outlier drags the mean ${V.fmt(mean - med, 1)} above the median, so <b>median</b> is the more representative fill.` : 'Without an outlier, mean and median are close — either works.');
+            (outlier > 300 ? `The outlier drags the mean ${V.fmt(mean - med, 1)} above the median, so <b>median</b> is the more representative fill.` : 'Without an outlier, mean and median are close - either works.');
         table.innerHTML = `<table class="vis-table"><tr><th>Product</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr><tr><td>price</td><td>100</td><td>120</td><td class="hl">${V.fmt(fill, 1)}</td><td>110</td><td>${outlier}</td></tr></table><code class="vis-code">df["price"].fillna(df["price"].${strat}())</code>`;
     }
     draw();
@@ -366,8 +366,8 @@ ML_VIS.l2_scaling = function (root) {
         V.text(svg, 20 + Math.max(wA, 60) / 2, 78, `age ${V.fmt(100 * ca / tot, 1)}%`, { size: 14, weight: 700, color: V.C.sky, anchor: wA < 60 ? 'start' : 'middle' });
         V.text(svg, 20 + wA + (520 - wA) / 2, 78, `income ${V.fmt(100 * ci / tot, 1)}%`, { size: 14, weight: 700, color: V.C.amber });
         V.text(svg, 20, 135, `Δage = ${V.fmt(da, 3)}     Δincome = ${V.fmt(di, 3)}     distance = √(Δage² + Δincome²) = ${V.fmt(dist, 3)}`, { size: 14, anchor: 'start' });
-        V.text(svg, 20, 165, mode === 'raw' ? 'Raw units: income differences are thousands, age differences are single digits.' : mode === 'minmax' ? "x' = (x − min) / (max − min) puts both on 0–1." : 'z = (x − μ) / σ puts both on "standard deviations from the mean".', { size: 13, anchor: 'start', color: '#64748b' });
-        read.innerHTML = mode === 'raw' ? 'Without scaling, income decides almost the whole distance — not because it matters more, only because its units are bigger. Distance-based models (KNN, SVM) would effectively ignore age.' : 'After scaling, both features contribute on comparable footing. The order of customers is unchanged — same pattern, different ruler.';
+        V.text(svg, 20, 165, mode === 'raw' ? 'Raw units: income differences are thousands, age differences are single digits.' : mode === 'minmax' ? "x' = (x - min) / (max - min) puts both on 0-1." : 'z = (x - μ) / σ puts both on "standard deviations from the mean".', { size: 13, anchor: 'start', color: '#64748b' });
+        read.innerHTML = mode === 'raw' ? 'Without scaling, income decides almost the whole distance - not because it matters more, only because its units are bigger. Distance-based models (KNN, SVM) would effectively ignore age.' : 'After scaling, both features contribute on comparable footing. The order of customers is unchanged - same pattern, different ruler.';
     }
     draw();
 };
@@ -388,9 +388,9 @@ ML_VIS.l2_groupby = function (root) {
         V.clear(stage);
         stage.append(
             panel('0 · Raw rows', step === 0, V.h('div', {}, rows.map(([g, p]) => chip(g, `${g} · ${p}`)))),
-            panel('1 · Split', step === 1, step >= 1 ? V.h('div', {}, Object.entries(groups).map(([g, ps]) => V.h('div', { class: 'vis-group' }, V.h('small', {}, g), ps.map(p => chip(g, p))))) : V.h('i', {}, '…')),
-            panel('2 · Apply ' + agg + '()', step === 2, step >= 2 ? V.h('div', {}, Object.entries(groups).map(([g, ps]) => V.h('div', {}, chip(g, `${g}: ${V.fmt(aggf[agg](ps), 1)}`)))) : V.h('i', {}, '…')),
-            panel('3 · Combine', step === 3, step >= 3 ? V.h('table', { class: 'vis-table' }, V.h('tr', {}, V.h('th', {}, 'user_type'), V.h('th', {}, agg + ' price')), Object.entries(groups).map(([g, ps]) => V.h('tr', {}, V.h('td', {}, g), V.h('td', {}, V.fmt(aggf[agg](ps), 1))))) : V.h('i', {}, '…')));
+            panel('1 · Split', step === 1, step >= 1 ? V.h('div', {}, Object.entries(groups).map(([g, ps]) => V.h('div', { class: 'vis-group' }, V.h('small', {}, g), ps.map(p => chip(g, p))))) : V.h('i', {}, '...')),
+            panel('2 · Apply ' + agg + '()', step === 2, step >= 2 ? V.h('div', {}, Object.entries(groups).map(([g, ps]) => V.h('div', {}, chip(g, `${g}: ${V.fmt(aggf[agg](ps), 1)}`)))) : V.h('i', {}, '...')),
+            panel('3 · Combine', step === 3, step >= 3 ? V.h('table', { class: 'vis-table' }, V.h('tr', {}, V.h('th', {}, 'user_type'), V.h('th', {}, agg + ' price')), Object.entries(groups).map(([g, ps]) => V.h('tr', {}, V.h('td', {}, g), V.h('td', {}, V.fmt(aggf[agg](ps), 1))))) : V.h('i', {}, '...')));
         stepBtn.textContent = step === 3 ? '↺ Start again' : 'Next step';
     }
     draw();
@@ -400,7 +400,7 @@ ML_VIS.l2_chart_picker = function (root) {
     const Q = [['line', 'How did monthly sales change over the year?'], ['bar', 'Which branch sells the most?'], ['hist', 'What do product prices look like?'], ['box', 'Are there unusual ages?'], ['scatter', 'Does advertising relate to sales?']];
     const svg = V.svg(520, 250), read = V.h('p', { class: 'vis-readout' });
     root.append(V.seg(Q.map(([k, q]) => [k, q]), 'line', v => draw(v)), svg, read);
-    const why = { line: 'Line chart — a trend over time.', bar: 'Bar chart — compare a quantity across discrete categories.', hist: 'Histogram — the distribution of one numeric variable (skew, long tail).', box: 'Box plot — centre, spread and outliers at a glance.', scatter: 'Scatter plot — the relationship between two numeric variables.' };
+    const why = { line: 'Line chart - a trend over time.', bar: 'Bar chart - compare a quantity across discrete categories.', hist: 'Histogram - the distribution of one numeric variable (skew, long tail).', box: 'Box plot - centre, spread and outliers at a glance.', scatter: 'Scatter plot - the relationship between two numeric variables.' };
     function draw(k) {
         V.clear(svg); const rr = V.rng(8), X0 = 50, Y0 = 215;
         V.arrow(svg, X0, Y0, 500, Y0, '#94a3b8', 1.4, rr); V.arrow(svg, X0, Y0, X0, 15, '#94a3b8', 1.4, rr);
@@ -433,8 +433,8 @@ ML_VIS.l2_leakage = function (root) {
         svg.append(V.s('path', { d: `M${tx} 108 l10 12 l-10 12 l-10 -12 z`, fill: V.C.amber, stroke: V.C.ink }));
         V.text(svg, tx, 92, `test ${test} → ${V.fmt(sc(test), 2)}`, { size: 14, weight: 700, color: V.C.amber });
         V.text(svg, X(0.5), 165, 'training range after scaling', { size: 12, color: V.C.green });
-        V.text(svg, 280, 205, mode === 'train' ? 'The test point is scaled with parameters it never influenced.' : 'max came FROM the test point — the scaler already "saw" the exam.', { size: 15, color: mode === 'train' ? V.C.green : V.C.red });
-        read.innerHTML = mode === 'train' ? `Train-only fit: (${test} − 10) / (30 − 10) = <b>${V.fmt(sc(test), 2)}</b>. Values outside 0–1 are fine and honest: the test set really is unlike the training data.` : `Leaky fit: the test value set the maximum, so it becomes exactly <b>1</b> and the training data is squashed to ${V.fmt(sc(10), 2)}–${V.fmt(sc(30), 2)}. Test information has entered preprocessing, so evaluation will look better than reality.`;
+        V.text(svg, 280, 205, mode === 'train' ? 'The test point is scaled with parameters it never influenced.' : 'max came FROM the test point - the scaler already "saw" the exam.', { size: 15, color: mode === 'train' ? V.C.green : V.C.red });
+        read.innerHTML = mode === 'train' ? `Train-only fit: (${test} - 10) / (30 - 10) = <b>${V.fmt(sc(test), 2)}</b>. Values outside 0-1 are fine and honest: the test set really is unlike the training data.` : `Leaky fit: the test value set the maximum, so it becomes exactly <b>1</b> and the training data is squashed to ${V.fmt(sc(10), 2)}-${V.fmt(sc(30), 2)}. Test information has entered preprocessing, so evaluation will look better than reality.`;
         code.textContent = mode === 'train' ? 'scaler.fit(X_train)\nX_train = scaler.transform(X_train)\nX_test  = scaler.transform(X_test)   # correct' : 'scaler.fit(X_all)                     # wrong: includes test rows\nX_train = scaler.transform(X_train)\nX_test  = scaler.transform(X_test)';
     }
     draw();
@@ -443,7 +443,7 @@ ML_VIS.l2_leakage = function (root) {
 ML_VIS.l3_interaction3d = async function (root) {
     let mode = 'both';
     const read = V.h('p', { class: 'vis-readout' });
-    root.append(V.seg([['add', 'Additive: a·Attack + b·Defense'], ['inter', 'Interaction: Attack × Defense'], ['both', 'Both']], mode, v => { mode = v; show(); }), read);
+    root.append(V.seg([['add', 'Additive: a·Attack + b·Defense'], ['inter', 'Interaction: Attack x Defense'], ['both', 'Both']], mode, v => { mode = v; show(); }), read);
     const S = await V.scene3d(root, { radius: 7, phi: 1.0, theta: 0.9, target: [0, 0.6, 0], label: 'Additive plane versus interaction surface' });
     if (!S) return;
     const { THREE, scene } = S, N = 24, sz = 3;
@@ -463,11 +463,11 @@ ML_VIS.l3_interaction3d = async function (root) {
     const px = 49 / 100 * sz + o, pz = 49 / 100 * sz + o, py = 49 * 49 / 10000 * 2.2;
     const dot = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 12), new THREE.MeshLambertMaterial({ color: 0xd97706 }));
     dot.position.set(px, py, pz); scene.add(dot);
-    const lab = V.label3d(THREE, '49 × 49 = 2401', '#b45309', 0.3); lab.position.set(px + 0.2, py + 0.7, pz); scene.add(lab);
+    const lab = V.label3d(THREE, '49 x 49 = 2401', '#b45309', 0.3); lab.position.set(px + 0.2, py + 0.7, pz); scene.add(lab);
     scene.add(V.line3d(THREE, [[px, 0, pz], [px, py, pz]], 0xd97706, true));
     function show() {
         add.visible = mode !== 'inter'; inter.visible = mode !== 'add'; dot.visible = lab.visible = mode !== 'add'; S.dirty();
-        read.innerHTML = mode === 'add' ? 'Additive model: raising Attack always adds the same amount, whatever Defense is — a flat, tilted plane.' : mode === 'inter' ? 'Interaction feature: the surface bends upward only when <b>both</b> are high. The engineered column Attack × Defense lets even a simple model capture that.' : 'Compare: the plane (blue) cannot rise faster in the "both high" corner; the interaction surface (red) can.';
+        read.innerHTML = mode === 'add' ? 'Additive model: raising Attack always adds the same amount, whatever Defense is - a flat, tilted plane.' : mode === 'inter' ? 'Interaction feature: the surface bends upward only when <b>both</b> are high. The engineered column Attack x Defense lets even a simple model capture that.' : 'Compare: the plane (blue) cannot rise faster in the "both high" corner; the interaction surface (red) can.';
     }
     show();
 };
@@ -485,7 +485,7 @@ ML_VIS.l3_poly_count = function (root) {
     function draw() {
         const count = C(n + d, d) - 1;
         read.innerHTML = `PolynomialFeatures(degree=${d}, include_bias=False) on ${n} feature${n > 1 ? 's' : ''} → <b style="font-size:1.25em">${count.toLocaleString()}</b> features` +
-            (count <= 30 ? `<div class="vis-terms">${terms().join(' · ')}</div>` : `<div class="vis-terms">Too many to list — that is <b>feature explosion</b>.</div>`);
+            (count <= 30 ? `<div class="vis-terms">${terms().join(' · ')}</div>` : `<div class="vis-terms">Too many to list - that is <b>feature explosion</b>.</div>`);
         V.clear(svg); const rr = V.rng(6), w = Math.min(540, 20 + Math.log10(count + 1) / 7 * 520);
         V.rrect(svg, 10, 20, w, 44, count > 1000 ? V.C.rose : count > 50 ? V.C.amber : V.C.green, count > 1000 ? V.C.roseS : count > 50 ? V.C.amberS : V.C.greenS, rr);
         V.text(svg, 10, 92, 'bar length on a log scale: 10 · 100 · 1,000 · 10,000 · 100,000 · 1,000,000 features', { size: 13, anchor: 'start', color: '#64748b' });
@@ -519,7 +519,7 @@ ML_VIS.l3_binning = function (root) {
         V.text(svg, 30, 285, 'RM' + Math.round(lo / 1000) + 'k', { size: 12, anchor: 'start', color: '#64748b' });
         V.text(svg, 540, 285, 'RM' + Math.round(hi / 1000) + 'k', { size: 12, anchor: 'end', color: '#64748b' });
         const empty = counts.filter(c => c < 6).length;
-        read.innerHTML = mode === 'fixed' ? `Equal widths of about RM${Math.round((hi - lo) / k / 1000)}k. Counts: <b>${counts.join(' · ')}</b>. ${empty ? `${empty} bin(s) are nearly empty — the long tail wastes them.` : ''}` : `Every bin holds about ${Math.round(data.length / k)} people; the widths adapt (narrow where data is dense, wide in the tail). Counts: <b>${counts.join(' · ')}</b>.`;
+        read.innerHTML = mode === 'fixed' ? `Equal widths of about RM${Math.round((hi - lo) / k / 1000)}k. Counts: <b>${counts.join(' · ')}</b>. ${empty ? `${empty} bin(s) are nearly empty - the long tail wastes them.` : ''}` : `Every bin holds about ${Math.round(data.length / k)} people; the widths adapt (narrow where data is dense, wide in the tail). Counts: <b>${counts.join(' · ')}</b>.`;
     }
     draw();
 };
@@ -529,7 +529,7 @@ ML_VIS.l3_log = function (root) {
     let mode = 'raw';
     const svg = V.svg(560, 250), read = V.h('p', { class: 'vis-readout' });
     root.append(V.seg([['raw', 'Raw income'], ['log', 'log10(income)']], mode, v => { mode = v; draw(); }), svg, read,
-        V.h('div', { class: 'vis-terms' }, '10 → 1 · 100 → 2 · 1,000 → 3 · 1,000,000 → 6 — big values shrink far more than small ones'));
+        V.h('div', { class: 'vis-terms' }, '10 → 1 · 100 → 2 · 1,000 → 3 · 1,000,000 → 6 - big values shrink far more than small ones'));
     const skew = a => { const m = V.mean(a), s = V.std(a); return V.mean(a.map(x => ((x - m) / s) ** 3)); };
     function draw() {
         const vals = mode === 'raw' ? data : data.map(v => Math.log10(v)), lo = Math.min(...vals), hi = Math.max(...vals), B = 20, counts = Array(B).fill(0);
@@ -564,10 +564,10 @@ ML_VIS.l3_encoder = function (root) {
         out.innerHTML = `<table class="vis-table"><tr><th>category</th>${head.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map((r, i) => `<tr${(mode === 'dummy' || mode === 'effect') && i === 0 ? ' class="ref"' : ''}><td>${cats[i]}</td>${r.map(v => `<td class="${v === 1 ? 'one' : v === -1 ? 'neg' : ''}">${v}</td>`).join('')}</tr>`).join('')}</table>`;
         const m = cats.length, coll = mode === 'hash' ? m - new Set(cats.map(hash)).size : 0;
         read.innerHTML = {
-            label: `1 column. Warning: implies ${cats.join(' &lt; ')} — fine only if the categories are genuinely <b>ordinal</b>.`,
+            label: `1 column. Warning: implies ${cats.join(' &lt; ')} - fine only if the categories are genuinely <b>ordinal</b>.`,
             onehot: `m = ${m} categories → <b>${m}</b> columns, exactly one "hot" per row. No false order. <code>pd.get_dummies(df, columns=["genre"])</code>`,
             dummy: `<b>${m - 1}</b> columns: ${cats[0]} is the reference row (all 0). Avoids the dummy-variable trap. <code>drop_first=True</code>`,
-            effect: `<b>${m - 1}</b> columns, but the reference ${cats[0]} is coded −1 everywhere — comparisons are against the overall mean.`,
+            effect: `<b>${m - 1}</b> columns, but the reference ${cats[0]} is coded -1 everywhere - comparisons are against the overall mean.`,
             hash: `Fixed <b>${buckets}</b> columns whatever the number of categories. ${coll ? `<b style="color:#dc2626">${coll} collision(s)</b>: different categories share a bucket.` : 'No collisions with these categories.'}`
         }[mode];
     }
@@ -598,8 +598,8 @@ ML_VIS.l4_text_pipeline = function (root) {
             row('1 · Tokenize', tokens, `${tokens.length} tokens`),
             row('2 · Lowercase', lower, `${new Set(tokens).size} → ${new Set(lower).size} distinct`),
             row('3 · Remove special characters', clean, 'punctuation and symbols dropped'),
-            row('4 · Remove stopwords', nostop, 'the, is, are, and … carry little information', null),
-            row('5a · Stemming (heuristic)', nostop.map(stem), 'chops suffixes — may give non-words like "studi"'),
+            row('4 · Remove stopwords', nostop, 'the, is, are, and ... carry little information', null),
+            row('5a · Stemming (heuristic)', nostop.map(stem), 'chops suffixes - may give non-words like "studi"'),
             row('5b · Lemmatization (dictionary)', nostop.map(w => LEMMA[w] || w), 'returns real words: ran → run, mice → mouse'));
     }
     draw();
@@ -652,14 +652,14 @@ ML_VIS.l4_cosine = function (root) {
         svg.append(V.s('path', { d: `M${O.x + r * Math.cos(aa)} ${O.y + r * Math.sin(aa)} A${r} ${r} 0 0 ${ab > aa ? 1 : 0} ${O.x + r * Math.cos(ab)} ${O.y + r * Math.sin(ab)}`, fill: 'none', stroke: V.C.amber, 'stroke-width': 2 }));
         V.arrow(svg, O.x, O.y, A.x, A.y, V.C.sky, 3, rr); V.arrow(svg, O.x, O.y, B.x, B.y, V.C.rose, 3, rr);
         [[A, 'A', V.C.sky], [B, 'B', V.C.rose]].forEach(([p, n, col]) => { svg.append(V.s('circle', { cx: p.x, cy: p.y, r: 9, fill: col, opacity: .25 })); V.text(svg, p.x + 14, p.y - 10, n, { size: 16, weight: 700, color: col }); });
-        read.innerHTML = `θ = <b>${V.fmt(th, 1)}°</b> → cos θ = <b>${V.fmt(c, 3)}</b>. ${c > 0.95 ? 'Very similar documents (same direction) — length does not matter.' : c < 0.2 ? 'Nearly orthogonal: the documents share almost no terms.' : 'Partly similar.'}`;
+        read.innerHTML = `θ = <b>${V.fmt(th, 1)}°</b> → cos θ = <b>${V.fmt(c, 3)}</b>. ${c > 0.95 ? 'Very similar documents (same direction) - length does not matter.' : c < 0.2 ? 'Nearly orthogonal: the documents share almost no terms.' : 'Partly similar.'}`;
     }
     draw();
 };
 
 ML_VIS.l4_embed3d = async function (root) {
     const W = { king: [1.3, 1.1, 0.2], queen: [1.3, -1.1, 0.2], man: [-0.2, 1.1, 0.3], woman: [-0.2, -1.1, 0.3], prince: [0.7, 0.9, -0.7], princess: [0.7, -0.9, -0.7], cat: [-0.9, 0.1, 1.5], dog: [-0.5, 0.6, 1.8], kitten: [-1.3, -0.4, 1.2], car: [-1.4, 0.2, -1.4], truck: [-1.7, 0.7, -1.2], bus: [-0.9, -0.3, -1.8] };
-    const read = V.h('p', { class: 'vis-readout' }, 'Toy 3-D embedding (real ones have 100–300 dimensions). Similar words sit close together.');
+    const read = V.h('p', { class: 'vis-readout' }, 'Toy 3-D embedding (real ones have 100-300 dimensions). Similar words sit close together.');
     const ctl = V.h('div', { class: 'vis-row' });
     root.append(ctl, read);
     const S = await V.scene3d(root, { radius: 7.5, label: 'Word embedding space' });
@@ -671,7 +671,7 @@ ML_VIS.l4_embed3d = async function (root) {
     let extras = [];
     const clear = () => { extras.forEach(o => scene.remove(o)); extras = []; S.dirty(); };
     const add = o => { scene.add(o); extras.push(o); };
-    ctl.append(V.btn('king − man + woman = ?', () => {
+    ctl.append(V.btn('king - man + woman = ?', () => {
         clear(); const k = W.king, d = W.woman.map((v, i) => v - W.man[i]), t = k.map((v, i) => v + d[i]);
         add(V.line3d(THREE, [W.man, W.woman], 0x0284c7, true)); add(V.line3d(THREE, [k, t], 0xe11d48));
         const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.15), new THREE.MeshLambertMaterial({ color: 0xe11d48 })); m.position.set(...t); add(m);
@@ -680,11 +680,11 @@ ML_VIS.l4_embed3d = async function (root) {
         clear(); const near = Object.entries(W).filter(([w]) => w !== 'cat').map(([w, p]) => [w, Math.hypot(...p.map((v, i) => v - W.cat[i]))]).sort((a, b) => a[1] - b[1]).slice(0, 3);
         near.forEach(([w]) => add(V.line3d(THREE, [W.cat, W[w]], 0x059669, true)));
         read.innerHTML = `Closest to <b>cat</b>: ${near.map(([w, d]) => `${w} (${V.fmt(d, 2)})`).join(', ')}. With one-hot vectors, cat would be exactly as far from car as from dog.`; S.dirty();
-    }), V.btn('Clear', () => { clear(); read.textContent = 'Toy 3-D embedding (real ones have 100–300 dimensions). Similar words sit close together.'; }));
+    }), V.btn('Clear', () => { clear(); read.textContent = 'Toy 3-D embedding (real ones have 100-300 dimensions). Similar words sit close together.'; }));
 };
 
 ML_VIS.l4_timestamp = function (root) {
-    const zones = [['8', 'Malaysia (UTC+8)'], ['0', 'London (UTC+0)'], ['-5', 'New York (UTC−5)'], ['9', 'Tokyo (UTC+9)']];
+    const zones = [['8', 'Malaysia (UTC+8)'], ['0', 'London (UTC+0)'], ['-5', 'New York (UTC-5)'], ['9', 'Tokyo (UTC+9)']];
     const dt = V.h('input', { type: 'datetime-local', step: 1, value: '2026-09-23T14:35:22', class: 'vis-input', 'aria-label': 'Local date and time' });
     const tz = V.h('select', { class: 'vis-input', 'aria-label': 'Time zone' }, zones.map(([v, l]) => V.h('option', { value: v }, l)));
     const out = V.h('div', { class: 'vis-featgrid' }), other = V.h('p', { class: 'vis-readout' });
@@ -734,7 +734,7 @@ ML_VIS.l4_rgb3d = async function (root) {
             goal.set(m, { p, vis, rot });
         });
         labels.forEach((s, k) => { if (s) { s.visible = mode === 'split'; s.position.set(-1.9, 1.6, (k - 2) * 1.3); } });
-        read.innerHTML = { rgb: 'One colour image = an <b>(m, n, 3)</b> array: every pixel has red, green and blue intensities.', split: 'The same image as <b>three stacked matrices</b> — the R, G and B channels (drag to look from the side).', gray: 'Grayscale: <b>Y = 0.2125R + 0.7154G + 0.0721B</b> collapses three channels into one <b>(m, n)</b> matrix.', flat: 'Flattening: the 8 × 8 matrix becomes one row of <b>64</b> numbers — a feature vector, but neighbours are no longer next to each other.' }[mode];
+        read.innerHTML = { rgb: 'One colour image = an <b>(m, n, 3)</b> array: every pixel has red, green and blue intensities.', split: 'The same image as <b>three stacked matrices</b> - the R, G and B channels (drag to look from the side).', gray: 'Grayscale: <b>Y = 0.2125R + 0.7154G + 0.0721B</b> collapses three channels into one <b>(m, n)</b> matrix.', flat: 'Flattening: the 8 x 8 matrix becomes one row of <b>64</b> numbers - a feature vector, but neighbours are no longer next to each other.' }[mode];
         S.dirty();
     }
     S.onFrame(() => {
@@ -769,8 +769,8 @@ ML_VIS.l4_edges = function (root) {
     const S = 4, mk = () => { const c = V.h('canvas', { width: N * S, height: N * S, class: 'vis-pix' }); return c; };
     const c1 = mk(), c2 = mk(), c3 = mk();
     root.append(V.slider('edge threshold', 0.1, 2, 0.05, thr, v => { thr = v; draw(); }),
-        V.h('div', { class: 'vis-trio' }, V.h('figure', {}, c1, V.h('figcaption', {}, 'pixels (grayscale)')), V.h('figure', {}, c2, V.h('figcaption', {}, 'edges: sharp intensity change')), V.h('figure', {}, c3, V.h('figcaption', {}, 'HOG idea: dominant edge direction per 8×8 cell'))),
-        V.h('p', { class: 'vis-readout' }, 'Edges keep shapes and boundaries and ignore flat regions. HOG goes one step further and records which way the edges point in each cell — a compact description of shape.'));
+        V.h('div', { class: 'vis-trio' }, V.h('figure', {}, c1, V.h('figcaption', {}, 'pixels (grayscale)')), V.h('figure', {}, c2, V.h('figcaption', {}, 'edges: sharp intensity change')), V.h('figure', {}, c3, V.h('figcaption', {}, 'HOG idea: dominant edge direction per 8x8 cell'))),
+        V.h('p', { class: 'vis-readout' }, 'Edges keep shapes and boundaries and ignore flat regions. HOG goes one step further and records which way the edges point in each cell - a compact description of shape.'));
     function draw() {
         const paint = (c, f) => { const ctx = c.getContext('2d'); for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = Math.round(255 * f(y * N + x)); ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.fillRect(x * S, y * S, S, S); } return ctx; };
         paint(c1, i => img[i]);
