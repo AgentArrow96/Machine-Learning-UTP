@@ -150,25 +150,16 @@
             box-shadow: 0 8px 20px rgba(0, 0, 0, .16);
         }
 
-        .nav-exam.active {
-            background: #d97706;
+        .nav-project {
+            text-decoration: none;
+            justify-content: space-between;
         }
 
-        .nav-l1.active {
-            background: #0284c7;
+        .nav-ext {
+            color: #fbbf24;
         }
 
-        .nav-l2.active {
-            background: #65a30d;
-        }
-
-        .nav-l3.active {
-            background: #4f46e5;
-        }
-
-        .nav-l4.active {
-            background: #e11d48;
-        }
+        /* .nav-lN.active colours are generated per lecture by externalize.theme_css() */
 
 
 
@@ -2445,6 +2436,28 @@
         .quiz-option > span:last-child { min-width: 0; text-align: left; }
         .quiz-option pre, .bank-option pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font-size: 12px; }
 
+        /* Lecture 5-7 visuals */
+        .vis-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
+        .vis-step { width: 30px; height: 30px; border-radius: 999px; border: 1.5px solid #cbd5e1; background: #fff; color: #475569; font-weight: 800; font-size: 12px; cursor: pointer; }
+        .vis-step.done { background: #f1f5f9; color: #64748b; }
+        .vis-step.on { background: var(--accent, #0f172a); border-color: var(--accent, #0f172a); color: #fff; }
+        .vis-step-title { display: block; font-family: Kalam, 'Segoe Print', cursive; font-size: 17px; color: var(--accent, #0f172a); margin-top: 6px; }
+        .vis-chipgrid { display: flex; flex-wrap: wrap; gap: 2px; margin: 6px 0; }
+        .vis-chipgrid .vis-chip { transition: opacity .3s, background .3s, transform .3s; border-color: #0d9488; background: #f0fdfa; }
+        .vis-chipgrid .vis-chip.off { opacity: .28; text-decoration: line-through; background: #fff; border-color: #cbd5e1; }
+        .vis-chipgrid .vis-chip.just { opacity: .7; border-color: #e11d48; background: #ffe4e6; transform: scale(.95); }
+        .vis-chipgrid .vis-chip.both { background: #d1fae5; border-color: #059669; font-weight: 800; }
+        .vis-chipgrid .vis-chip.rfe { background: #ede9fe; border-color: #7c3aed; }
+        .vis-chipgrid .vis-chip.chi { opacity: .9; text-decoration: none; border: 2px dashed #059669; }
+        .vis-minis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-self: start; }
+        .vis-minifig { margin: 0; }
+        .vis-minifig figcaption { font-size: 11px; color: #64748b; line-height: 1.3; margin-top: 2px; }
+        .vis-mini { border: 1px solid #e2e8f0; border-radius: 6px; }
+        .vis-flow { stroke-dasharray: 8 6; animation: vis-flow 0.9s linear infinite; }
+        @keyframes vis-flow { to { stroke-dashoffset: -28; } }
+        @media (prefers-reduced-motion: reduce) { .vis-flow { animation: none; } }
+        select.vis-input { padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font-size: 12px; }
+
         /* Helper classes (generated from former inline styles) */
         .ta-r { text-align: right; }
         .ta-c { text-align: center; }
@@ -2471,20 +2484,40 @@
         .accent-l1 { --accent: #0284c7; }
         .bg-l1 { background: #0284c7; }
         .fg-l1 { color: #0284c7; }
+        .nav-l1.active { background: #0284c7; }
         .theme-l2 { --accent: #65a30d; --soft: #f7fee7; }
         .accent-l2 { --accent: #65a30d; }
         .bg-l2 { background: #65a30d; }
         .fg-l2 { color: #65a30d; }
+        .nav-l2.active { background: #65a30d; }
         .theme-l3 { --accent: #4f46e5; --soft: #eef2ff; }
         .accent-l3 { --accent: #4f46e5; }
         .bg-l3 { background: #4f46e5; }
         .fg-l3 { color: #4f46e5; }
+        .nav-l3.active { background: #4f46e5; }
         .theme-l4 { --accent: #e11d48; --soft: #fff1f2; }
         .accent-l4 { --accent: #e11d48; }
         .bg-l4 { background: #e11d48; }
         .fg-l4 { color: #e11d48; }
+        .nav-l4.active { background: #e11d48; }
+        .theme-l5 { --accent: #0d9488; --soft: #f0fdfa; }
+        .accent-l5 { --accent: #0d9488; }
+        .bg-l5 { background: #0d9488; }
+        .fg-l5 { color: #0d9488; }
+        .nav-l5.active { background: #0d9488; }
+        .theme-l6 { --accent: #7c3aed; --soft: #f5f3ff; }
+        .accent-l6 { --accent: #7c3aed; }
+        .bg-l6 { background: #7c3aed; }
+        .fg-l6 { color: #7c3aed; }
+        .nav-l6.active { background: #7c3aed; }
+        .theme-l7 { --accent: #c026d3; --soft: #fdf4ff; }
+        .accent-l7 { --accent: #c026d3; }
+        .bg-l7 { background: #c026d3; }
+        .fg-l7 { color: #c026d3; }
+        .nav-l7.active { background: #c026d3; }
         .theme-exam { --accent: #d97706; --soft: #fffbeb; }
         .accent-exam { --accent: #d97706; }
         .bg-exam { background: #d97706; }
         .fg-exam { color: #d97706; }
+        .nav-exam.active { background: #d97706; }
         .fg-gold { color: #fbbf24; }

@@ -1,0 +1,491 @@
+{
+  "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+  "classes": [
+    {
+      "colour": "#94a3b8",
+      "id": 0,
+      "name": "Other"
+    },
+    {
+      "colour": "#f59e0b",
+      "id": 1,
+      "name": "Flooded building"
+    },
+    {
+      "colour": "#0891b2",
+      "id": 2,
+      "name": "Flooded road"
+    }
+  ],
+  "created_at": "2026-10-23T23:20:32.121573+00:00",
+  "identity": "ba3993de7688cc42",
+  "original_classes": [
+    {
+      "colour": [
+        0,
+        0,
+        0
+      ],
+      "id": 0,
+      "name": "Background"
+    },
+    {
+      "colour": [
+        255,
+        0,
+        0
+      ],
+      "id": 1,
+      "name": "Building flooded"
+    },
+    {
+      "colour": [
+        180,
+        120,
+        120
+      ],
+      "id": 2,
+      "name": "Building non-flooded"
+    },
+    {
+      "colour": [
+        160,
+        150,
+        20
+      ],
+      "id": 3,
+      "name": "Road flooded"
+    },
+    {
+      "colour": [
+        140,
+        140,
+        140
+      ],
+      "id": 4,
+      "name": "Road non-flooded"
+    },
+    {
+      "colour": [
+        61,
+        230,
+        250
+      ],
+      "id": 5,
+      "name": "Water"
+    },
+    {
+      "colour": [
+        0,
+        82,
+        255
+      ],
+      "id": 6,
+      "name": "Tree"
+    },
+    {
+      "colour": [
+        255,
+        0,
+        245
+      ],
+      "id": 7,
+      "name": "Vehicle"
+    },
+    {
+      "colour": [
+        255,
+        235,
+        0
+      ],
+      "id": 8,
+      "name": "Pool"
+    },
+    {
+      "colour": [
+        4,
+        250,
+        7
+      ],
+      "id": 9,
+      "name": "Grass"
+    }
+  ],
+  "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+  "schema_version": 1,
+  "steps": {
+    "acquire": {
+      "archive_bytes": 13057835433,
+      "archive_sha256": "13edcce9a23526fc5eaee6ec6b12005464222928e24cfd4808cd5f00eb8f18f4",
+      "archive_verified": true,
+      "counts": {
+        "test": 448,
+        "train": 1445,
+        "val": 450
+      },
+      "expected_counts": {
+        "test": 448,
+        "train": 1445,
+        "val": 450
+      },
+      "files_hashed": 4686,
+      "licence": "CDLA-Permissive-1.0",
+      "repository": "https://github.com/BinaLab/FloodNet-Supervised_v1.0"
+    },
+    "augmentation": {
+      "draws": [
+        {
+          "brightness": -0.0811645304224701,
+          "contrast": 1.0394736058118728,
+          "epoch": 1,
+          "flip_lr": false,
+          "flip_ud": true,
+          "image": "data/preprocessing/ba3993de7688cc42/augment_0.png",
+          "overlay": "data/preprocessing/ba3993de7688cc42/augment_0_mask.png",
+          "quarter_turns": 1
+        },
+        {
+          "brightness": 0.06323884110444311,
+          "contrast": 1.0265510362490418,
+          "epoch": 2,
+          "flip_lr": false,
+          "flip_ud": true,
+          "image": "data/preprocessing/ba3993de7688cc42/augment_1.png",
+          "overlay": "data/preprocessing/ba3993de7688cc42/augment_1_mask.png",
+          "quarter_turns": 3
+        },
+        {
+          "brightness": -0.026864108817982957,
+          "contrast": 0.964215183445905,
+          "epoch": 3,
+          "flip_lr": true,
+          "flip_ud": false,
+          "image": "data/preprocessing/ba3993de7688cc42/augment_2.png",
+          "overlay": "data/preprocessing/ba3993de7688cc42/augment_2_mask.png",
+          "quarter_turns": 1
+        },
+        {
+          "brightness": 0.06898552750761941,
+          "contrast": 1.0196589656976245,
+          "epoch": 4,
+          "flip_lr": true,
+          "flip_ud": false,
+          "image": "data/preprocessing/ba3993de7688cc42/augment_3.png",
+          "overlay": "data/preprocessing/ba3993de7688cc42/augment_3_mask.png",
+          "quarter_turns": 2
+        },
+        {
+          "brightness": -0.09438067823802719,
+          "contrast": 0.9005768668278914,
+          "epoch": 5,
+          "flip_lr": false,
+          "flip_ud": true,
+          "image": "data/preprocessing/ba3993de7688cc42/augment_4.png",
+          "overlay": "data/preprocessing/ba3993de7688cc42/augment_4_mask.png",
+          "quarter_turns": 3
+        },
+        {
+          "brightness": 0.04660545985549144,
+          "contrast": 0.934218826568692,
+          "epoch": 6,
+          "flip_lr": true,
+          "flip_ud": false,
+          "image": "data/preprocessing/ba3993de7688cc42/augment_5.png",
+          "overlay": "data/preprocessing/ba3993de7688cc42/augment_5_mask.png",
+          "quarter_turns": 2
+        },
+        {
+          "brightness": -0.06102419646958286,
+          "contrast": 1.0423791221193914,
+          "epoch": 7,
+          "flip_lr": true,
+          "flip_ud": true,
+          "image": "data/preprocessing/ba3993de7688cc42/augment_6.png",
+          "overlay": "data/preprocessing/ba3993de7688cc42/augment_6_mask.png",
+          "quarter_turns": 2
+        },
+        {
+          "brightness": 0.0764735034381624,
+          "contrast": 1.079227798370173,
+          "epoch": 8,
+          "flip_lr": false,
+          "flip_ud": true,
+          "image": "data/preprocessing/ba3993de7688cc42/augment_7.png",
+          "overlay": "data/preprocessing/ba3993de7688cc42/augment_7_mask.png",
+          "quarter_turns": 1
+        }
+      ],
+      "example_id": "train_6710",
+      "original": "data/preprocessing/ba3993de7688cc42/augment_original.png",
+      "seed": 42,
+      "strength": 0.1
+    },
+    "budgets": {
+      "counts": {
+        "100": 1445,
+        "25": 361
+      },
+      "seed": 42,
+      "strata": {
+        "100": {
+          "both": 146,
+          "building": 3,
+          "neither": 1280,
+          "road": 16
+        },
+        "25": {
+          "both": 36,
+          "building": 1,
+          "neither": 320,
+          "road": 4
+        }
+      },
+      "test": {
+        "both": 44,
+        "building": 3,
+        "neither": 396,
+        "road": 5
+      },
+      "validation": {
+        "both": 48,
+        "building": 1,
+        "neither": 396,
+        "road": 5
+      }
+    },
+    "cache": {
+      "arrays": {
+        "test_mask": [
+          448,
+          256,
+          256
+        ],
+        "test_rgb": [
+          448,
+          256,
+          256,
+          3
+        ],
+        "train_mask": [
+          1445,
+          256,
+          256
+        ],
+        "train_rgb": [
+          1445,
+          256,
+          256,
+          3
+        ],
+        "val_mask": [
+          450,
+          256,
+          256
+        ],
+        "val_rgb": [
+          450,
+          256,
+          256,
+          3
+        ]
+      },
+      "identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+      "rederived_by_audit": "Audit D7 re-derived all 2,343 arrays from the raw files with 0 differing pixels.",
+      "seconds": 248.82039890000124
+    },
+    "duplicates": {
+      "exact_groups": 0,
+      "examples": [
+        {
+          "cross_split": true,
+          "distance": 0,
+          "ids": [
+            "train_6344",
+            "test_6353"
+          ],
+          "urls": [
+            "data/preprocessing/ba3993de7688cc42/near_train_6344.webp",
+            "data/preprocessing/ba3993de7688cc42/near_test_6353.webp"
+          ]
+        },
+        {
+          "cross_split": true,
+          "distance": 0,
+          "ids": [
+            "train_6346",
+            "test_6362"
+          ],
+          "urls": [
+            "data/preprocessing/ba3993de7688cc42/near_train_6346.webp",
+            "data/preprocessing/ba3993de7688cc42/near_test_6362.webp"
+          ]
+        },
+        {
+          "cross_split": false,
+          "distance": 0,
+          "ids": [
+            "train_6347",
+            "train_6348"
+          ],
+          "urls": [
+            "data/preprocessing/ba3993de7688cc42/near_train_6347.webp",
+            "data/preprocessing/ba3993de7688cc42/near_train_6348.webp"
+          ]
+        }
+      ],
+      "near_candidates": 2019,
+      "near_cross_split": 1044,
+      "near_note": "8x8 average hash, Hamming <=4: visual-review candidates, not proven overlap. Official splits preserved.",
+      "removed": 0
+    },
+    "normalisation": {
+      "example_range": [
+        -1.9466564655303955,
+        2.640000104904175
+      ],
+      "mean": [
+        0.48500001430511475,
+        0.4560000002384186,
+        0.4059999883174896
+      ],
+      "std": [
+        0.2290000021457672,
+        0.2240000069141388,
+        0.22499999403953552
+      ],
+      "theoretical_range": [
+        -2.1179039478302,
+        2.640000104904175
+      ]
+    },
+    "orientation": {
+      "example": {
+        "agreement_fixed": 1.6123704154127945,
+        "agreement_raw": 1.0198943370875906,
+        "exif_orientation": 3,
+        "fixed": "data/preprocessing/ba3993de7688cc42/exif_fixed.webp",
+        "id": "test_7301",
+        "raw": "data/preprocessing/ba3993de7688cc42/exif_raw.webp"
+      },
+      "policy": "Apply RGB EXIF orientation (release values 1/3); masks already use annotation/display coordinates. Visually verified.",
+      "rotated": 57,
+      "total": 2343
+    },
+    "pairing": {
+      "class_presence": [
+        172,
+        245,
+        880,
+        264,
+        1175,
+        1059,
+        1882,
+        813,
+        531,
+        2161
+      ],
+      "ids_in_range": true,
+      "mask_modes": [
+        "L"
+      ],
+      "original_classes": [
+        "Background",
+        "Building flooded",
+        "Building non-flooded",
+        "Road flooded",
+        "Road non-flooded",
+        "Water",
+        "Tree",
+        "Vehicle",
+        "Pool",
+        "Grass"
+      ],
+      "pairs": 2343,
+      "rule": "<id>.jpg \u2194 <id>_lab.png within the same split folder",
+      "size_mismatches": 0,
+      "unpaired": 0
+    },
+    "remap": {
+      "mapping": {
+        "1": 1,
+        "3": 2,
+        "others_0_to_9": 0
+      },
+      "original_train_pixels": [
+        308842999,
+        318505750,
+        572544673,
+        559209008,
+        966381628,
+        1979142780,
+        3107988573,
+        32624508,
+        36997059,
+        9914900430
+      ],
+      "processed_train_pixels": [
+        67127898,
+        989294,
+        1740856
+      ]
+    },
+    "resize": {
+      "mask_resampling": "nearest",
+      "padding_label": 255,
+      "rgb_resampling": "Lanczos",
+      "size": 256,
+      "sizes": [
+        {
+          "count": 1991,
+          "example_id": "test_10163",
+          "geometry": {
+            "height": 192,
+            "left": 0,
+            "original_height": 3000,
+            "original_width": 4000,
+            "top": 32,
+            "width": 256
+          },
+          "padded": "data/preprocessing/ba3993de7688cc42/padded_4000x3000.png",
+          "size": [
+            4000,
+            3000
+          ]
+        },
+        {
+          "count": 352,
+          "example_id": "test_10823",
+          "geometry": {
+            "height": 171,
+            "left": 0,
+            "original_height": 3072,
+            "original_width": 4592,
+            "top": 42,
+            "width": 256
+          },
+          "padded": "data/preprocessing/ba3993de7688cc42/padded_4592x3072.png",
+          "size": [
+            4592,
+            3072
+          ]
+        }
+      ]
+    },
+    "resolution": {
+      "original_target_pixels": [
+        531824546,
+        856221148
+      ],
+      "original_total": 28857531648,
+      "processed_target_pixels": [
+        1654854,
+        2662575
+      ],
+      "processed_total": 113270784,
+      "targets_lost_images": {
+        "1": 0,
+        "2": 0
+      }
+    }
+  }
+}

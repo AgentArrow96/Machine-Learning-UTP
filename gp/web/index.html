@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta name="description" content="A reproducible FloodNet study comparing SLIC + Random Forest, a CUDA-trained ResNet-18 U-Net and a DenseCRF-refined U-Net under two labelled-data budgets and three training seeds, before and after a pre-registered improvement study." />
+    <title>FloodNet: Flooded Infrastructure Results</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=Kalam:wght@400;700&amp;display=swap" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+    <link rel="stylesheet" href="assets/css/main.css?v=6.5" />
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script defer src="assets/js/charts.js?v=6.5"></script>
+    <script defer src="assets/js/math.js?v=6.5"></script>
+    <script defer src="assets/js/viewer.js?v=6.5"></script>
+    <script defer src="assets/js/walkthrough.js?v=6.5"></script>
+    <script defer src="assets/js/preprocessing.js?v=6.5"></script>
+    <script defer src="assets/js/imbalance.js?v=6.5"></script>
+    <script defer src="assets/js/improve.js?v=6.5"></script>
+    <script defer src="assets/js/app.js?v=6.5"></script>
+</head>
+<body>
+    <a class="fn-skip" href="#fn-main">Skip to content</a>
+    <div class="fn-app">
+        <aside class="fn-sidebar" id="fn-sidebar">
+            <div class="fn-brand">
+                <p class="fn-brand-title">FloodNet</p>
+                <p>TEB3123 · Group 3 · Results explorer</p>
+                <p class="fn-brand-status"><span class="fn-live-dot" aria-hidden="true"></span><span id="fn-export-status">Loading export…</span></p>
+            </div>
+            <div class="fn-nav-panel fn-view-panel">
+                <p class="fn-nav-label" id="fn-view-label">MODELS SHOWN</p>
+                <div class="fn-seg fn-view-seg" role="group" aria-labelledby="fn-view-label">
+                    <button type="button" data-view="before" aria-pressed="false">Before</button>
+                    <button type="button" data-view="after" aria-pressed="false">After</button>
+                    <button type="button" data-view="compare" aria-pressed="true">Compare</button>
+                </div>
+                <p class="fn-view-note" id="fn-view-note">Before = the frozen originals. After = the pre-registered combined models of the improvement study.</p>
+            </div>
+            <nav class="fn-nav-panel" id="fn-nav" aria-label="Project sections"></nav>
+            <div class="fn-nav-panel fn-sidebar-note">
+                <p class="fn-nav-label">A CONTROLLED COMPARISON</p>
+                <p>Three approaches. Two data budgets. Three seeds. One shared protocol, then one pre-registered round of improvements.</p>
+                <div class="fn-sdgs"><span>SDG 11</span><span>SDG 13</span></div>
+            </div>
+        </aside>
+        <button type="button" class="fn-mobile-menu" aria-controls="fn-sidebar" aria-expanded="false" aria-label="Open navigation"><span aria-hidden="true">☰</span></button>
+        <main class="fn-main" id="fn-main" tabindex="-1">
+            <div class="fn-content">
+                <div id="fn-page" class="fn-page"><div class="fn-loading">Reading the experiment export…</div></div>
+                <footer class="fn-footer">
+                    <span>Flooded infrastructure, at pixel level. Research prototype, Hurricane Harvey imagery.</span>
+                    <span>Static explorer · no model server required</span>
+                </footer>
+            </div>
+        </main>
+    </div>
+    <noscript>This results explorer requires JavaScript. Evaluation tables remain available as CSV files in the exported data bundle.</noscript>
+</body>
+</html>

@@ -1,0 +1,280 @@
+{
+  "adopted": true,
+  "base_experiment_identity": "65a77d261e7b0266be386f0560135adfa8b02bf6dbe7cfee4a3ff57e6c7743b7",
+  "frozen_at": "2026-10-23T17:45:27.022827+00:00",
+  "identity": "8708b9323865d5763b5d3998b5128da7ebf29d287f7cfb08d889604ca6404db7",
+  "runs": [
+    {
+      "checkpoint_sha256": "4780843b29ac1ef3bb5c9a6440282e005f2d68d022e84b2838dfd726357098c9",
+      "directory": "runs/hybrid_25_s42",
+      "identity": {
+        "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+        "backend": "pydensecrf2 1.1",
+        "base_checkpoint_sha256": "4780843b29ac1ef3bb5c9a6440282e005f2d68d022e84b2838dfd726357098c9",
+        "base_identity": {
+          "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+          "budget": 25,
+          "budget_identity": "5f86fb49e9ad5f991ca44d98492f8e8d5d5da87e6fad80ea2dfcd86e45f85572",
+          "config_hash": "aaa572d6b79902dd9a235bad2cb3dbb652079bb7a5bda5e0a4dc8bcaea7ca5ab",
+          "feature_identity": null,
+          "method": "unet",
+          "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+          "seed": 42,
+          "source_identity": "0dba96542db850de14b4dd0400cd72b9c6bb76619488a596e7ba25a308d456e9"
+        },
+        "base_run_id": "unet_25_s42",
+        "budget": 25,
+        "budget_identity": "5f86fb49e9ad5f991ca44d98492f8e8d5d5da87e6fad80ea2dfcd86e45f85572",
+        "config_hash": "dfd8d284282d11f9307bbd5628ccfffe8d25bcb668a4850cac4e756a1c8a7b49",
+        "crf": {
+          "bilateral": {
+            "compat": 10,
+            "srgb": 5,
+            "sxy": 20
+          },
+          "gaussian": {
+            "compat": 3,
+            "sxy": 3
+          },
+          "iterations": 5
+        },
+        "method": "hybrid",
+        "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+        "seed": 42,
+        "selection_identity": "49e9a8f7fcf16f94346ce3be586386513d49b8b97642baf614e5f0daa3c6ab3a",
+        "source_identity": "d37fa1164f4e1e194d3a62fc178df5d6e2a9915e3e109dba3294272eb856b832"
+      },
+      "run_id": "hybrid_25_s42",
+      "validation_sha256": "ad17f8c758b85a964fff683d18f412cd5004d3943a8d5bd276c6c003a8216ae2"
+    },
+    {
+      "checkpoint_sha256": "50ad5eda9aa1d246e06b02ea6e2f28ca66d2529144f064dc6abeb077017faa7a",
+      "directory": "runs/hybrid_25_s43",
+      "identity": {
+        "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+        "backend": "pydensecrf2 1.1",
+        "base_checkpoint_sha256": "50ad5eda9aa1d246e06b02ea6e2f28ca66d2529144f064dc6abeb077017faa7a",
+        "base_identity": {
+          "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+          "budget": 25,
+          "budget_identity": "5f86fb49e9ad5f991ca44d98492f8e8d5d5da87e6fad80ea2dfcd86e45f85572",
+          "config_hash": "aaa572d6b79902dd9a235bad2cb3dbb652079bb7a5bda5e0a4dc8bcaea7ca5ab",
+          "feature_identity": null,
+          "method": "unet",
+          "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+          "seed": 43,
+          "source_identity": "0dba96542db850de14b4dd0400cd72b9c6bb76619488a596e7ba25a308d456e9"
+        },
+        "base_run_id": "unet_25_s43",
+        "budget": 25,
+        "budget_identity": "5f86fb49e9ad5f991ca44d98492f8e8d5d5da87e6fad80ea2dfcd86e45f85572",
+        "config_hash": "dfd8d284282d11f9307bbd5628ccfffe8d25bcb668a4850cac4e756a1c8a7b49",
+        "crf": {
+          "bilateral": {
+            "compat": 10,
+            "srgb": 5,
+            "sxy": 20
+          },
+          "gaussian": {
+            "compat": 3,
+            "sxy": 3
+          },
+          "iterations": 5
+        },
+        "method": "hybrid",
+        "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+        "seed": 43,
+        "selection_identity": "49e9a8f7fcf16f94346ce3be586386513d49b8b97642baf614e5f0daa3c6ab3a",
+        "source_identity": "d37fa1164f4e1e194d3a62fc178df5d6e2a9915e3e109dba3294272eb856b832"
+      },
+      "run_id": "hybrid_25_s43",
+      "validation_sha256": "178308a4f1404690a1bf92e9e47660dc98af1d20631caa7dff5bdc1b2eadf986"
+    },
+    {
+      "checkpoint_sha256": "111ec121e603325a4f01f9685db45b797a8d9dd98741e9660857029673e12aaf",
+      "directory": "runs/hybrid_25_s44",
+      "identity": {
+        "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+        "backend": "pydensecrf2 1.1",
+        "base_checkpoint_sha256": "111ec121e603325a4f01f9685db45b797a8d9dd98741e9660857029673e12aaf",
+        "base_identity": {
+          "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+          "budget": 25,
+          "budget_identity": "5f86fb49e9ad5f991ca44d98492f8e8d5d5da87e6fad80ea2dfcd86e45f85572",
+          "config_hash": "aaa572d6b79902dd9a235bad2cb3dbb652079bb7a5bda5e0a4dc8bcaea7ca5ab",
+          "feature_identity": null,
+          "method": "unet",
+          "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+          "seed": 44,
+          "source_identity": "0dba96542db850de14b4dd0400cd72b9c6bb76619488a596e7ba25a308d456e9"
+        },
+        "base_run_id": "unet_25_s44",
+        "budget": 25,
+        "budget_identity": "5f86fb49e9ad5f991ca44d98492f8e8d5d5da87e6fad80ea2dfcd86e45f85572",
+        "config_hash": "dfd8d284282d11f9307bbd5628ccfffe8d25bcb668a4850cac4e756a1c8a7b49",
+        "crf": {
+          "bilateral": {
+            "compat": 10,
+            "srgb": 5,
+            "sxy": 20
+          },
+          "gaussian": {
+            "compat": 3,
+            "sxy": 3
+          },
+          "iterations": 5
+        },
+        "method": "hybrid",
+        "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+        "seed": 44,
+        "selection_identity": "49e9a8f7fcf16f94346ce3be586386513d49b8b97642baf614e5f0daa3c6ab3a",
+        "source_identity": "d37fa1164f4e1e194d3a62fc178df5d6e2a9915e3e109dba3294272eb856b832"
+      },
+      "run_id": "hybrid_25_s44",
+      "validation_sha256": "eaa5359fc03b54ab42275e054c93780075ed5fabccfa66dee0ebb0274d4f92cb"
+    },
+    {
+      "checkpoint_sha256": "299d047b33efd527dae3df60c6da670d4dec8408b9d5129f60e9d9a25a261cd0",
+      "directory": "runs/hybrid_100_s42",
+      "identity": {
+        "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+        "backend": "pydensecrf2 1.1",
+        "base_checkpoint_sha256": "299d047b33efd527dae3df60c6da670d4dec8408b9d5129f60e9d9a25a261cd0",
+        "base_identity": {
+          "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+          "budget": 100,
+          "budget_identity": "e601bce8cc3351f8685d438fd8fa94a7bce6f0ba49ba1f403c789be08aadbf73",
+          "config_hash": "aaa572d6b79902dd9a235bad2cb3dbb652079bb7a5bda5e0a4dc8bcaea7ca5ab",
+          "feature_identity": null,
+          "method": "unet",
+          "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+          "seed": 42,
+          "source_identity": "0dba96542db850de14b4dd0400cd72b9c6bb76619488a596e7ba25a308d456e9"
+        },
+        "base_run_id": "unet_100_s42",
+        "budget": 100,
+        "budget_identity": "e601bce8cc3351f8685d438fd8fa94a7bce6f0ba49ba1f403c789be08aadbf73",
+        "config_hash": "dfd8d284282d11f9307bbd5628ccfffe8d25bcb668a4850cac4e756a1c8a7b49",
+        "crf": {
+          "bilateral": {
+            "compat": 10,
+            "srgb": 5,
+            "sxy": 20
+          },
+          "gaussian": {
+            "compat": 3,
+            "sxy": 3
+          },
+          "iterations": 5
+        },
+        "method": "hybrid",
+        "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+        "seed": 42,
+        "selection_identity": "49e9a8f7fcf16f94346ce3be586386513d49b8b97642baf614e5f0daa3c6ab3a",
+        "source_identity": "d37fa1164f4e1e194d3a62fc178df5d6e2a9915e3e109dba3294272eb856b832"
+      },
+      "run_id": "hybrid_100_s42",
+      "validation_sha256": "c0f8f8f8be582065eda063339fcf9e5130d1233678b05e41db8fa7b211e1bc78"
+    },
+    {
+      "checkpoint_sha256": "0339f8535dba787ff239e94ba300657221c537231f294ad310c012f21cfc2908",
+      "directory": "runs/hybrid_100_s43",
+      "identity": {
+        "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+        "backend": "pydensecrf2 1.1",
+        "base_checkpoint_sha256": "0339f8535dba787ff239e94ba300657221c537231f294ad310c012f21cfc2908",
+        "base_identity": {
+          "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+          "budget": 100,
+          "budget_identity": "e601bce8cc3351f8685d438fd8fa94a7bce6f0ba49ba1f403c789be08aadbf73",
+          "config_hash": "aaa572d6b79902dd9a235bad2cb3dbb652079bb7a5bda5e0a4dc8bcaea7ca5ab",
+          "feature_identity": null,
+          "method": "unet",
+          "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+          "seed": 43,
+          "source_identity": "0dba96542db850de14b4dd0400cd72b9c6bb76619488a596e7ba25a308d456e9"
+        },
+        "base_run_id": "unet_100_s43",
+        "budget": 100,
+        "budget_identity": "e601bce8cc3351f8685d438fd8fa94a7bce6f0ba49ba1f403c789be08aadbf73",
+        "config_hash": "dfd8d284282d11f9307bbd5628ccfffe8d25bcb668a4850cac4e756a1c8a7b49",
+        "crf": {
+          "bilateral": {
+            "compat": 10,
+            "srgb": 5,
+            "sxy": 20
+          },
+          "gaussian": {
+            "compat": 3,
+            "sxy": 3
+          },
+          "iterations": 5
+        },
+        "method": "hybrid",
+        "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+        "seed": 43,
+        "selection_identity": "49e9a8f7fcf16f94346ce3be586386513d49b8b97642baf614e5f0daa3c6ab3a",
+        "source_identity": "d37fa1164f4e1e194d3a62fc178df5d6e2a9915e3e109dba3294272eb856b832"
+      },
+      "run_id": "hybrid_100_s43",
+      "validation_sha256": "98ed1f5c4de5e1c0c422c8496e21043117b0a74888320068e04d4202c40e6d06"
+    },
+    {
+      "checkpoint_sha256": "8100e8d50db4ed89fb5f2eaa16f81e9d041db8cb55b0f677a0c5f3f8d32c30c7",
+      "directory": "runs/hybrid_100_s44",
+      "identity": {
+        "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+        "backend": "pydensecrf2 1.1",
+        "base_checkpoint_sha256": "8100e8d50db4ed89fb5f2eaa16f81e9d041db8cb55b0f677a0c5f3f8d32c30c7",
+        "base_identity": {
+          "audit_identity": "a97ae4007ed7aa5d4d430e8c14ac6746ffacb340b309aab55614e2fdb573b01f",
+          "budget": 100,
+          "budget_identity": "e601bce8cc3351f8685d438fd8fa94a7bce6f0ba49ba1f403c789be08aadbf73",
+          "config_hash": "aaa572d6b79902dd9a235bad2cb3dbb652079bb7a5bda5e0a4dc8bcaea7ca5ab",
+          "feature_identity": null,
+          "method": "unet",
+          "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+          "seed": 44,
+          "source_identity": "0dba96542db850de14b4dd0400cd72b9c6bb76619488a596e7ba25a308d456e9"
+        },
+        "base_run_id": "unet_100_s44",
+        "budget": 100,
+        "budget_identity": "e601bce8cc3351f8685d438fd8fa94a7bce6f0ba49ba1f403c789be08aadbf73",
+        "config_hash": "dfd8d284282d11f9307bbd5628ccfffe8d25bcb668a4850cac4e756a1c8a7b49",
+        "crf": {
+          "bilateral": {
+            "compat": 10,
+            "srgb": 5,
+            "sxy": 20
+          },
+          "gaussian": {
+            "compat": 3,
+            "sxy": 3
+          },
+          "iterations": 5
+        },
+        "method": "hybrid",
+        "processed_identity": "1122a74faea444aadd7adde5534b6be0e9b61dbb699dae8186d697be70ac2372",
+        "seed": 44,
+        "selection_identity": "49e9a8f7fcf16f94346ce3be586386513d49b8b97642baf614e5f0daa3c6ab3a",
+        "source_identity": "d37fa1164f4e1e194d3a62fc178df5d6e2a9915e3e109dba3294272eb856b832"
+      },
+      "run_id": "hybrid_100_s44",
+      "validation_sha256": "578cd9b521bdf77087596a31fde5addaac918c58f907ed60d0f3a239e4eb3530"
+    }
+  ],
+  "schema_version": 1,
+  "selected": {
+    "bilateral": {
+      "compat": 10,
+      "srgb": 5,
+      "sxy": 20
+    },
+    "gaussian": {
+      "compat": 3,
+      "sxy": 3
+    },
+    "iterations": 5
+  },
+  "selection_identity": "49e9a8f7fcf16f94346ce3be586386513d49b8b97642baf614e5f0daa3c6ab3a"
+}

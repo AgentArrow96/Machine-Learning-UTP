@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Machine Learning Lectures 1-4: Guided Learning &amp; Exam Prep</title>
+    <title>Machine Learning Lectures 1-7: Guided Learning &amp; Exam Prep</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&amp;display=swap" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
@@ -20,7 +20,7 @@
         <aside class="sidebar" id="sidebar">
             <div class="brand">
                 <h1>Machine Learning</h1>
-                <p>TEB3123 · Lectures 1-4</p>
+                <p>TEB3123 · Lectures 1-7</p>
                 <p class="last-updated" id="last-updated" title="Fetching from GitHub...">
                     <span class="live-dot" aria-hidden="true"></span><span id="last-updated-text">Checking last update...</span>
                 </p>
@@ -32,6 +32,12 @@
                 <button class="nav-btn nav-exam" id="nav-traps" data-nav="traps">Dangerous Confusions</button>
                 <button class="nav-btn nav-exam" id="nav-simulator" data-nav="simulator">MCQ Simulator</button>
                 <button class="nav-btn nav-exam" id="nav-strategy" data-nav="strategy">Test Strategy</button>
+            </div>
+            <div class="nav-panel">
+                <p class="nav-label fg-gold">GROUP PROJECT</p>
+                <a class="nav-btn nav-project" id="nav-floodnet" href="floodnet/" data-local-href="../gp/web/index.html" target="_blank" rel="noopener">FloodNet results explorer<span class="nav-ext" aria-hidden="true">↗</span></a>
+                <!-- GitHub Pages publishes the explorer at floodnet/ (see .github/workflows/deploy-pages.yml); opened from the repository it lives at ../gp/web/. -->
+                <script>if (!location.hostname.endsWith('github.io')) { const link = document.getElementById('nav-floodnet'); link.href = link.dataset.localHref; }</script>
             </div>
             <details class="nav-module">
                 <summary class="nav-module-summary fg-l1"><span>LECTURE 1</span><span class="chevron">⌄</span></summary>
@@ -87,6 +93,49 @@
                     <button class="nav-btn nav-l4" id="nav-l4-prep" data-nav="l4-prep">MCQ prep</button>
                 </div>
             </details>
+            <details class="nav-module">
+                <summary class="nav-module-summary fg-l5"><span>LECTURE 5</span><span class="chevron">⌄</span></summary>
+                <div class="nav-module-body">
+                    <button class="nav-btn nav-l5" id="nav-l5-why" data-nav="l5-why">Why scaling matters</button>
+                    <button class="nav-btn nav-l5" id="nav-l5-scalers" data-nav="l5-scalers">Standard · MinMax · Robust</button>
+                    <button class="nav-btn nav-l5" id="nav-l5-selection" data-nav="l5-selection">Why select features</button>
+                    <button class="nav-btn nav-l5" id="nav-l5-filter" data-nav="l5-filter">Filter methods</button>
+                    <button class="nav-btn nav-l5" id="nav-l5-wrapper" data-nav="l5-wrapper">RFE & forest importance</button>
+                    <button class="nav-btn nav-l5" id="nav-l5-pipeline" data-nav="l5-pipeline">Leak-free pipelines</button>
+                    <button class="nav-btn nav-l5" id="nav-l5-notes" data-nav="l5-notes">Full intuitive explanation</button>
+                    <button class="nav-btn nav-l5" id="nav-l5-subjective" data-nav="l5-subjective">Subjective exam prep</button>
+                    <button class="nav-btn nav-l5" id="nav-l5-prep" data-nav="l5-prep">MCQ prep</button>
+                </div>
+            </details>
+            <details class="nav-module">
+                <summary class="nav-module-summary fg-l6"><span>LECTURE 6</span><span class="chevron">⌄</span></summary>
+                <div class="nav-module-body">
+                    <button class="nav-btn nav-l6" id="nav-l6-supervised" data-nav="l6-supervised">Supervised learning</button>
+                    <button class="nav-btn nav-l6" id="nav-l6-linear" data-nav="l6-linear">Linear regression & OLS</button>
+                    <button class="nav-btn nav-l6" id="nav-l6-poly" data-nav="l6-poly">Multiple & polynomial</button>
+                    <button class="nav-btn nav-l6" id="nav-l6-logistic" data-nav="l6-logistic">Logistic regression</button>
+                    <button class="nav-btn nav-l6" id="nav-l6-trees" data-nav="l6-trees">Decision trees & Gini</button>
+                    <button class="nav-btn nav-l6" id="nav-l6-forest" data-nav="l6-forest">Random forest</button>
+                    <button class="nav-btn nav-l6" id="nav-l6-notes" data-nav="l6-notes">Full intuitive explanation</button>
+                    <button class="nav-btn nav-l6" id="nav-l6-subjective" data-nav="l6-subjective">Subjective exam prep</button>
+                    <button class="nav-btn nav-l6" id="nav-l6-prep" data-nav="l6-prep">MCQ prep</button>
+                </div>
+            </details>
+            <details class="nav-module">
+                <summary class="nav-module-summary fg-l7"><span>LECTURE 7</span><span class="chevron">⌄</span></summary>
+                <div class="nav-module-body">
+                    <button class="nav-btn nav-l7" id="nav-l7-svm" data-nav="l7-svm">SVM & the margin</button>
+                    <button class="nav-btn nav-l7" id="nav-l7-kernels" data-nav="l7-kernels">Kernels & nonlinear SVM</button>
+                    <button class="nav-btn nav-l7" id="nav-l7-bayes" data-nav="l7-bayes">Naive Bayes</button>
+                    <button class="nav-btn nav-l7" id="nav-l7-knn" data-nav="l7-knn">K-nearest neighbours</button>
+                    <button class="nav-btn nav-l7" id="nav-l7-ann" data-nav="l7-ann">Neurons & XOR</button>
+                    <button class="nav-btn nav-l7" id="nav-l7-training" data-nav="l7-training">Training a network</button>
+                    <button class="nav-btn nav-l7" id="nav-l7-choose" data-nav="l7-choose">Choosing an algorithm</button>
+                    <button class="nav-btn nav-l7" id="nav-l7-notes" data-nav="l7-notes">Full intuitive explanation</button>
+                    <button class="nav-btn nav-l7" id="nav-l7-subjective" data-nav="l7-subjective">Subjective exam prep</button>
+                    <button class="nav-btn nav-l7" id="nav-l7-prep" data-nav="l7-prep">MCQ prep</button>
+                </div>
+            </details>
         </aside>
         <button aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation" class="mobile-menu" id="mobile-menu" data-action="toggle-sidebar"><span class="bars" aria-hidden="true"></span></button>
         <button type="button" class="contents-fab" id="contents-fab" data-action="contents" title="Back to the section list" hidden>↑ Contents</button>
@@ -135,6 +184,34 @@
                 <section class="page-section hidden" data-page="l4-notes" id="sec-l4-notes"></section>
                 <section class="page-section hidden" data-page="l4-subjective" id="sec-l4-subjective"></section>
                 <section class="page-section hidden" data-page="l4-prep" id="sec-l4-prep"></section>
+                <section class="page-section hidden" data-page="l5-why" id="sec-l5-why"></section>
+                <section class="page-section hidden" data-page="l5-scalers" id="sec-l5-scalers"></section>
+                <section class="page-section hidden" data-page="l5-selection" id="sec-l5-selection"></section>
+                <section class="page-section hidden" data-page="l5-filter" id="sec-l5-filter"></section>
+                <section class="page-section hidden" data-page="l5-wrapper" id="sec-l5-wrapper"></section>
+                <section class="page-section hidden" data-page="l5-pipeline" id="sec-l5-pipeline"></section>
+                <section class="page-section hidden" data-page="l5-notes" id="sec-l5-notes"></section>
+                <section class="page-section hidden" data-page="l5-subjective" id="sec-l5-subjective"></section>
+                <section class="page-section hidden" data-page="l5-prep" id="sec-l5-prep"></section>
+                <section class="page-section hidden" data-page="l6-supervised" id="sec-l6-supervised"></section>
+                <section class="page-section hidden" data-page="l6-linear" id="sec-l6-linear"></section>
+                <section class="page-section hidden" data-page="l6-poly" id="sec-l6-poly"></section>
+                <section class="page-section hidden" data-page="l6-logistic" id="sec-l6-logistic"></section>
+                <section class="page-section hidden" data-page="l6-trees" id="sec-l6-trees"></section>
+                <section class="page-section hidden" data-page="l6-forest" id="sec-l6-forest"></section>
+                <section class="page-section hidden" data-page="l6-notes" id="sec-l6-notes"></section>
+                <section class="page-section hidden" data-page="l6-subjective" id="sec-l6-subjective"></section>
+                <section class="page-section hidden" data-page="l6-prep" id="sec-l6-prep"></section>
+                <section class="page-section hidden" data-page="l7-svm" id="sec-l7-svm"></section>
+                <section class="page-section hidden" data-page="l7-kernels" id="sec-l7-kernels"></section>
+                <section class="page-section hidden" data-page="l7-bayes" id="sec-l7-bayes"></section>
+                <section class="page-section hidden" data-page="l7-knn" id="sec-l7-knn"></section>
+                <section class="page-section hidden" data-page="l7-ann" id="sec-l7-ann"></section>
+                <section class="page-section hidden" data-page="l7-training" id="sec-l7-training"></section>
+                <section class="page-section hidden" data-page="l7-choose" id="sec-l7-choose"></section>
+                <section class="page-section hidden" data-page="l7-notes" id="sec-l7-notes"></section>
+                <section class="page-section hidden" data-page="l7-subjective" id="sec-l7-subjective"></section>
+                <section class="page-section hidden" data-page="l7-prep" id="sec-l7-prep"></section>
 
             </div>
         </main>

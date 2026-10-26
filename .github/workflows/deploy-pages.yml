@@ -6,6 +6,9 @@ on:
     paths:
       - app/index.html
       - app/assets/**
+      - gp/web/index.html
+      - gp/web/assets/**
+      - gp/web/data/**
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
 
@@ -30,6 +33,12 @@ jobs:
           mkdir -p _site
           cp app/index.html _site/index.html
           cp -r app/assets _site/assets
+          # FloodNet group-project results explorer, linked from the study site's sidebar.
+          mkdir -p _site/floodnet
+          cp gp/web/index.html _site/floodnet/index.html
+          cp -r gp/web/assets _site/floodnet/assets
+          cp -r gp/web/data _site/floodnet/data
+          rm -rf _site/floodnet/data/hires
           touch _site/.nojekyll
 
       - uses: actions/configure-pages@v5

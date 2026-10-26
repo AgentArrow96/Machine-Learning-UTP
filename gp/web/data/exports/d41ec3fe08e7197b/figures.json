@@ -1,0 +1,44 @@
+[
+  {
+    "figures": {
+      "100": "data/exports/d41ec3fe08e7197b/figures/test_6412_budget100.png",
+      "25": "data/exports/d41ec3fe08e7197b/figures/test_6412_budget25.png"
+    },
+    "id": "test_6412"
+  },
+  {
+    "figures": {
+      "100": "data/exports/d41ec3fe08e7197b/figures/test_7284_budget100.png",
+      "25": "data/exports/d41ec3fe08e7197b/figures/test_7284_budget25.png"
+    },
+    "id": "test_7284"
+  },
+  {
+    "figures": {
+      "100": "data/exports/d41ec3fe08e7197b/figures/test_7291_budget100.png",
+      "25": "data/exports/d41ec3fe08e7197b/figures/test_7291_budget25.png"
+    },
+    "id": "test_7291"
+  },
+  {
+    "figures": {
+      "100": "data/exports/d41ec3fe08e7197b/figures/test_7301_budget100.png",
+      "25": "data/exports/d41ec3fe08e7197b/figures/test_7301_budget25.png"
+    },
+    "id": "test_7301"
+  },
+  {
+    "figures": {
+      "100": "data/exports/d41ec3fe08e7197b/figures/test_7486_budget100.png",
+      "25": "data/exports/d41ec3fe08e7197b/figures/test_7486_budget25.png"
+    },
+    "id": "test_7486"
+  },
+  {
+    "figures": {
+      "100": "data/exports/d41ec3fe08e7197b/figures/test_7616_budget100.png",
+      "25": "data/exports/d41ec3fe08e7197b/figures/test_7616_budget25.png"
+    },
+    "id": "test_7616"
+  }
+]

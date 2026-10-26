@@ -183,7 +183,8 @@
         function resetProgress() { if (!confirm('Reset learned status and best quiz scores?')) return; try { localStorage.removeItem('mlStudyProgress'); } catch (e) { } updateProgressDashboard(); }
         function updateProgressDashboard() {
             const p = getProgress();
-            for (let n = 1; n <= 4; n++) {
+            const ids = [...document.querySelectorAll('[id^="status-m"]')].map(e => Number(e.id.slice(8)));
+            for (const n of ids) {
                 const x = p[n] || { learned: false, best: 0 }; const pct = Math.round(((x.learned ? 1 : 0) + (x.best >= 80 ? 1 : 0)) / 2 * 100);
                 const status = document.getElementById('status-m' + n), best = document.getElementById('best-m' + n), fill = document.getElementById('progress-m' + n);
                 if (status) status.textContent = x.learned ? 'Learned' : 'Not learned'; if (best) best.textContent = 'Best: ' + (x.best || 0) + '%'; if (fill) fill.style.width = pct + '%';
