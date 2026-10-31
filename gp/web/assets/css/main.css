@@ -3161,3 +3161,116 @@ pre.fn-code {
 .fn-metrics-table.fn-class-table td {
     white-space: normal;
 }
+
+/* Before / Undersampling / After / Compare (v7) */
+.fn-view-seg {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fn-compare-with {
+    margin-top: 12px;
+}
+
+.fn-compare-with[hidden] {
+    display: none;
+}
+
+.fn-state.original {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.fn-state.undersample {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.fn-state.blacken {
+    background: #1e293b;
+    color: #f8fafc;
+}
+
+.fn-view-chip.undersample {
+    background: #f5f3ff;
+    color: #5b21b6;
+    border-color: #ddd6fe;
+}
+
+.fn-result-row.fn-result-row-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fn-result-method {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+}
+
+.fn-result-method .fn-idea-label {
+    margin: 0;
+}
+
+.fn-table td.fn-selected-cell {
+    background: #f0fdf4;
+}
+
+.fn-blacken-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.fn-blacken-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.fn-blacken-row.fn-blacken-row-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fn-blacken-row figure {
+    margin: 0;
+    min-width: 0;
+}
+
+.fn-blacken-row img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    background: var(--fn-line);
+    border-radius: 8px;
+}
+
+.fn-blacken-row .fn-zoom-icon {
+    top: 4px;
+    right: 4px;
+}
+
+.fn-blacken-row figcaption {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--fn-muted);
+}
+
+@media (max-width: 900px) {
+    .fn-result-row.fn-result-row-3 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.fn-metrics-table.fn-shift-table td {
+    white-space: normal;
+}
+
+.fn-shift-table td:first-child,
+.fn-shift-table td.fn-nowrap,
+.fn-shift-table .fn-pill {
+    white-space: nowrap;
+}
+
+.fn-ratio-table td small {
+    font-weight: 500;
+}

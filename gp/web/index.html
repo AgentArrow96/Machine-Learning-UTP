@@ -10,16 +10,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=Kalam:wght@400;700&amp;display=swap" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
-    <link rel="stylesheet" href="assets/css/main.css?v=6.6" />
+    <link rel="stylesheet" href="assets/css/main.css?v=7.5" />
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-    <script defer src="assets/js/charts.js?v=6.6"></script>
-    <script defer src="assets/js/math.js?v=6.6"></script>
-    <script defer src="assets/js/viewer.js?v=6.6"></script>
-    <script defer src="assets/js/walkthrough.js?v=6.6"></script>
-    <script defer src="assets/js/preprocessing.js?v=6.6"></script>
-    <script defer src="assets/js/imbalance.js?v=6.6"></script>
-    <script defer src="assets/js/improve.js?v=6.6"></script>
-    <script defer src="assets/js/app.js?v=6.6"></script>
+    <script defer src="assets/js/charts.js?v=7.5"></script>
+    <script defer src="assets/js/math.js?v=7.5"></script>
+    <script defer src="assets/js/viewer.js?v=7.5"></script>
+    <script defer src="assets/js/walkthrough.js?v=7.5"></script>
+    <script defer src="assets/js/preprocessing.js?v=7.5"></script>
+    <script defer src="assets/js/imbalance.js?v=7.5"></script>
+    <script defer src="assets/js/improve.js?v=7.5"></script>
+    <script defer src="assets/js/app.js?v=7.5"></script>
 </head>
 <body>
     <a class="fn-skip" href="#fn-main">Skip to content</a>
@@ -33,11 +33,19 @@
             <div class="fn-nav-panel fn-view-panel">
                 <p class="fn-nav-label" id="fn-view-label">MODELS SHOWN</p>
                 <div class="fn-seg fn-view-seg" role="group" aria-labelledby="fn-view-label">
-                    <button type="button" data-view="before" aria-pressed="false">Before</button>
+                    <button type="button" data-view="before" aria-pressed="true">Before</button>
+                    <button type="button" data-view="undersample" aria-pressed="false">Undersampling</button>
                     <button type="button" data-view="after" aria-pressed="false">After</button>
-                    <button type="button" data-view="compare" aria-pressed="true">Compare</button>
+                    <button type="button" data-view="compare" aria-pressed="false">Compare</button>
                 </div>
-                <p class="fn-view-note" id="fn-view-note">Before = the frozen originals. After = the pre-registered combined models of the improvement study.</p>
+                <div class="fn-compare-with" id="fn-compare-with" hidden>
+                    <p class="fn-nav-label" id="fn-compare-label">COMPARE BEFORE WITH</p>
+                    <div class="fn-seg fn-view-seg fn-view-seg-two" role="group" aria-labelledby="fn-compare-label">
+                        <button type="button" data-compare-with="undersample" aria-pressed="true">Undersampling</button>
+                        <button type="button" data-compare-with="after" aria-pressed="false">After</button>
+                    </div>
+                </div>
+                <p class="fn-view-note" id="fn-view-note">Before = every model treated the same way. Undersampling = fewer “Other” pixels instead of class weights. After = the improvement study.</p>
             </div>
             <nav class="fn-nav-panel" id="fn-nav" aria-label="Project sections"></nav>
             <div class="fn-nav-panel fn-sidebar-note">

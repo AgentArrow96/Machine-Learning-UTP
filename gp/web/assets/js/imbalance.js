@@ -45,7 +45,8 @@ const FN_IMBALANCE = {
             + `<tr><td>U-Net loss</td><td>Inverse-frequency class weights from each budget's training images, clipped to [${o.weight_clip.join(', ')}]: ${FN_MATH.inline('weights')}</td><td>25%: ${w('25')}<br>100%: ${w('100')}<br><small class="fn-muted">Other / building / road. Unclipped, building would weigh ≈ ${Math.round(o.unclipped_building_over_other['100'])}× Other; the clip keeps it ≈ ${Math.round(o.unet_class_weights['100'][1] / o.unet_class_weights['100'][0])}×.</small></td></tr>`
             + `<tr><td>Random Forest</td><td>Balanced class weights; under the region cap every flooded region is kept and only "Other" is thinned</td><td>25%: ${r('25')}<br>100%: ${r('100')}<br><small class="fn-muted">training regions, Other / building / road</small></td></tr>`
             + `<tr><td>Data</td><td>The 25% subset is stratified by target presence</td><td>Same strata shares as 100% (<a href="#preprocessing">Data preprocessing, step 9</a>)</td></tr>`
-            + `<tr><td>Metric</td><td>Flooded-class mIoU, never pixel accuracy</td><td>"Other" is ${pct(o.train_pixel_shares[0], 0)} of pixels</td></tr></tbody></table></div>`);
+            + `<tr><td>Metric</td><td>Flooded-class mIoU, never pixel accuracy</td><td>"Other" is ${pct(o.train_pixel_shares[0], 0)} of pixels</td></tr></tbody></table></div>`
+            + (uniform ? `<p class="fn-small fn-muted">This study was measured against the first version of Before. Before now gives the forest the U-Net's capped class weights and every training region (<a href="#results">Results</a>).</p>` : ''));
     },
 
     review() {

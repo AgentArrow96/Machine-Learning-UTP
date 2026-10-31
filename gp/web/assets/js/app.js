@@ -11,27 +11,31 @@ const METHODS = Object.keys(METHOD);
 const SEED_COLOURS = ['#0891b2', '#d97706', '#7c3aed', '#e11d48'];
 const CLASS_SHORT = ['Other', 'Building', 'Road'];
 const PAGE_SIZE = 24;
-const STATE_COLOUR = { before: '#94a3b8', after: '#0891b2' };
-const STATE_NAME = { before: 'Before', after: 'After' };
+const STATE_COLOUR = { original: '#94a3b8', before: '#94a3b8', undersample: '#7c3aed', after: '#0891b2' };
+const STATE_NAME = { original: 'Before v1', before: 'Before', undersample: 'Undersampling', after: 'After', blacken: 'Blackened' };
+const VIEW_NAME = { before: 'Before', undersample: 'Undersampling', after: 'After', compare: 'Compare' };
 const COMPONENT_NAME = { aux10: '10-class supervision', recipe: 'training recipe', tta: 'test-time augmentation', res512: '512-px input', rf_context: 'context features', encoder: 'ResNet-34 encoder' };
 
 const NAV = [
     { group: 'START', items: [['overview', 'Overview']] },
     { group: 'THE DATA', items: [['dataset', 'Dataset'], ['preprocessing', 'Data preprocessing']] },
     { group: 'THE MODELS', items: [['methodology', 'Methods & equations'], ['walkthrough', 'How the models work']] },
-    { group: 'THE RESULTS', items: [['results', 'Results'], ['changes', 'What “After” changed'], ['explorer', 'Prediction explorer'], ['improve', 'Improvements'], ['imbalance', 'Class imbalance']] },
+    { group: 'THE RESULTS', items: [['results', 'Results'], ['undersample', 'Undersampling pipeline'], ['changes', 'What “After” changed'], ['explorer', 'Prediction explorer'], ['improve', 'Improvements'], ['imbalance', 'Class imbalance']] },
     { group: 'NOTES', items: [['training', 'Training & compute'], ['interpretation', 'Interpretation'], ['reproducibility', 'Reproducibility']] }
 ];
 const AFTER_ONLY = new Set(['changes', 'improve']);
+const UNDER_ONLY = new Set(['undersample']);
 const VIEW_PAGES = new Set(['overview', 'results', 'explorer', 'training', 'interpretation', 'reproducibility']);
 
 let data = null;
+let uniform = null;
+let under = null;
 let after = null;
 let drawToken = 0;
 const imageCache = new Map();
 const chartRenderers = new Map();
 const state = {
-    view: 'compare', budget: 100, presence: 'all', overlap: 'all', sort: 'id', search: '',
+    view: 'before', compareWith: 'undersample', budget: 100, presence: 'all', overlap: 'all', sort: 'id', search: '',
     selected: null, page: 0, opacity: 0.55, overlay: true, visible: [true, true, true],
     metricRun: null, lossSeed: null
 };
@@ -76,25 +80,42 @@ function plain(text) {
 
 
 function bundle(source = 'before') {
-    return source === 'after' ? after : data;
+    return { original: data, before: uniform || data, undersample: under, after, blacken: under?.blacken }[source] || null;
 }
 
 function compareMode() {
-    return state.view === 'compare' && !!after;
+    return state.view === 'compare' && !!bundle(state.compareWith);
 }
 
-function showAfter() {
-    return !!after && state.view !== 'before';
-}
-
-function navItems() {
-    const items = NAV.flatMap(g => g.items.filter(([route]) => showAfter() || !AFTER_ONLY.has(route)).map(([route, label]) => ({ route, label, group: g.group })));
-    items.forEach((item, i) => { item.number = String(i + 1).padStart(2, '0'); });
-    return items;
+function pairSources() {
+    return state.compareWith === 'after' ? ['original', 'after'] : ['before', 'undersample'];
 }
 
 function viewSource() {
-    return state.view === 'after' && after ? 'after' : 'before';
+    if (compareMode()) return pairSources()[1];
+    return state.view !== 'compare' && bundle(state.view) ? state.view : 'before';
+}
+
+function viewSources() {
+    return compareMode() ? pairSources() : [viewSource()];
+}
+
+function showAfter() {
+    return !!after && (state.view === 'after' || (compareMode() && state.compareWith === 'after'));
+}
+
+function showUnder() {
+    return !!under && (state.view === 'undersample' || (compareMode() && state.compareWith === 'undersample'));
+}
+
+function routeShown(route) {
+    return (showAfter() || !AFTER_ONLY.has(route)) && (showUnder() || !UNDER_ONLY.has(route));
+}
+
+function navItems() {
+    const items = NAV.flatMap(g => g.items.filter(([route]) => routeShown(route)).map(([route, label]) => ({ route, label, group: g.group })));
+    items.forEach((item, i) => { item.number = String(i + 1).padStart(2, '0'); });
+    return items;
 }
 
 function summaryFor(method, budget, source = 'before') {
@@ -114,12 +135,17 @@ function effectFor(method, source = 'before') {
     return bundle(source)?.budget_effects.find(e => e.method === method);
 }
 
-function comparisonFor(method, budget) {
-    return after?.comparisons.find(c => c.method === method && c.budget === budget);
+function comparisonFor(method, budget, source = viewSource()) {
+    return bundle(source)?.comparisons?.find(c => c.method === method && c.budget === budget);
+}
+
+function sampleData(sample, source) {
+    const b = bundle(source);
+    return b === data ? sample : b?.samples[sample.id];
 }
 
 function sampleMetrics(sample, runId, source = 'before') {
-    return source === 'after' ? after?.samples[sample.id]?.metrics[runId] : sample.metrics[runId];
+    return sampleData(sample, source)?.metrics[runId];
 }
 
 function overlapInfo() {
@@ -145,10 +171,12 @@ function kicker(route) {
 }
 
 function viewChip(route) {
-    if (!showAfter()) return '';
-    if (!VIEW_PAGES.has(route)) return `<span class="fn-view-chip same">Same before and after</span>`;
-    const text = { before: 'Showing: before (frozen originals)', after: 'Showing: after (combined models)', compare: 'Showing: before vs after' }[state.view];
-    return `<span class="fn-view-chip ${state.view}">${text}</span>`;
+    if ((!showAfter() && !showUnder()) || AFTER_ONLY.has(route) || UNDER_ONLY.has(route)) return '';
+    if (!VIEW_PAGES.has(route)) return `<span class="fn-view-chip same">Same in every view</span>`;
+    const [base, other] = pairSources();
+    const text = compareMode() ? `Showing: ${STATE_NAME[base]} vs ${STATE_NAME[other]}`
+        : { undersample: 'Showing: undersampling pipeline', after: 'Showing: after (combined models)' }[viewSource()];
+    return `<span class="fn-view-chip ${compareMode() ? 'compare' : viewSource()}">${text}</span>`;
 }
 
 function header(route, title, intro = '') {
@@ -236,6 +264,18 @@ function stateLabel(source) {
     return `<span class="fn-state ${source}">${STATE_NAME[source]}</span>`;
 }
 
+function sourceLabel(source, sources) {
+    return sources.length > 1 ? stateLabel(source) : '';
+}
+
+function matchedRun(run, source) {
+    return bundle(source)?.runs.find(r => r.method === run.method && r.budget === run.budget && r.seed === run.seed);
+}
+
+function beforeNote() {
+    return uniform ? 'Before: every model treated the same way (capped inverse-frequency class weights, all training data).' : 'Before: the frozen original models.';
+}
+
 
 function summaryTable() {
     if (compareMode()) return compareTable();
@@ -250,7 +290,7 @@ function summaryTable() {
             + `<td class="fn-score">${meanSd(s.flooded_miou)}<small>seeds: ${seedValues(s.flooded_miou)}</small></td>`
             + `${cell('miou')}${cell('building_iou')}${cell('road_iou')}</tr>`;
     }).join('');
-    const which = source === 'after' ? `Pre-registered combined models of the improvement study (${componentsText()}).` : 'Frozen original models.';
+    const which = { after: `Pre-registered combined models of the improvement study (${componentsText()}).`, undersample: `Undersampling pipeline: no class weights, "Other" thinned to the ratio chosen on validation (${ratioText()}).` }[source] || beforeNote();
     return `<div class="fn-table-wrap"><table class="fn-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`
         + `<p class="fn-figure-note">${which} Mean ± standard deviation across ${data.protocol.train_seeds.length} training seeds (${data.protocol.train_seeds.join(', ')}), pooled pixel counts per run. ${esc(testLabel())}. <a href="#results">Every metric (majority IoU, weighted mIoU, accuracy, precision, recall, Dice) →</a></p>`;
 }
@@ -259,37 +299,50 @@ function componentsText() {
     return `RF: ${components('rf').join(' + ')}; U-Net and CRF: ${components('unet').join(' + ')}`;
 }
 
+function ratioText() {
+    const choice = under?.ratio?.choice;
+    if (!choice) return '';
+    return `U-Net and U-Net + CRF r = ${choice.unet['25']} at 25%, ${choice.unet['100']} at 100%; RF r = ${choice.rf['25']} at 25%, ${choice.rf['100']} at 100%`;
+}
+
 function compareTable() {
-    const rows = data.summary.map(item => {
-        const a = summaryFor(item.method, item.budget, 'after');
-        const c = comparisonFor(item.method, item.budget);
+    const [base, other] = pairSources();
+    const rows = bundle(base).summary.map(item => {
+        const a = summaryFor(item.method, item.budget, other);
+        const c = comparisonFor(item.method, item.budget, other);
         return `<tr><td><span class="fn-dot" style="background:${METHOD[item.method].colour}"></span>${esc(METHOD[item.method].short)}</td><td>${item.budget}%</td>`
             + `<td>${meanSd(item.full.flooded_miou)}<span class="fn-seed-values"><br>${seedValues(item.full.flooded_miou)}</span></td>`
             + `<td class="fn-score">${meanSd(a?.full.flooded_miou)}<small>seeds: ${seedValues(a?.full.flooded_miou)}</small></td>`
             + `<td class="fn-score">${c ? points(c.mean_difference) : 'N/A'}<small>${c ? c.differences.map(points).join(' · ') : ''}</small></td>`
-            + `<td class="fn-nowrap">${c ? interval(c.ci) : 'N/A'}</td><td>${c ? decisionPill(c.decision) : ''}</td></tr>`;
+            + `<td class="fn-nowrap">${c ? `${interval(c.ci)}<br>${decisionPill(c.decision)}` : 'N/A'}</td></tr>`;
     }).join('');
-    return `<div class="fn-table-wrap"><table class="fn-table fn-compare-table"><thead><tr><th>Method</th><th>Labels</th><th>${stateLabel('before')}</th><th>${stateLabel('after')}</th><th>Change (per seed)</th><th>95% CI</th><th>Decision</th></tr></thead><tbody>${rows}</tbody></table></div>`
-        + `<p class="fn-figure-note">Flooded-class mIoU on the ${esc(testLabel().toLowerCase())}, mean ± SD over seeds ${data.protocol.train_seeds.join(', ')}. After = the pre-registered combined models (${componentsText()}). Change = seed-matched after − before; the interval and decision come from the pre-registered paired bootstrap. <a href="#changes">What exactly changed →</a></p>`;
+    const what = other === 'after'
+        ? `Before v1 = the first version of Before, the baseline the improvement study was measured against (the RF then used balanced weights and a region cap). After = the pre-registered combined models (${componentsText()}). <a href="#changes">What exactly changed →</a>`
+        : `${beforeNote()} Undersampling = no class weights and “Other” thinned to the ratio chosen on validation (${ratioText()}). <a href="#undersample">How the undersampling works →</a>`;
+    return `<div class="fn-table-wrap"><table class="fn-table fn-compare-table"><thead><tr><th>Method</th><th>Labels</th><th>${stateLabel(base)}</th><th>${stateLabel(other)}</th><th>Change (per seed)</th><th>95% CI and decision</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        + `<p class="fn-figure-note">Flooded-class mIoU on the ${esc(testLabel().toLowerCase())}, mean ± SD over seeds ${data.protocol.train_seeds.join(', ')}. Change = seed-matched ${STATE_NAME[other]} − ${STATE_NAME[base]}; the interval and decision come from the pre-registered paired bootstrap. ${what}</p>`;
 }
 
 
 function overviewTakeaways() {
-    if (compareMode() || viewSource() === 'after') {
+    const source = viewSource();
+    if (source !== 'before') {
+        const base = source === 'after' ? 'original' : 'before';
         return takeaways(METHODS.map(method => {
             const parts = [25, 100].map(budget => {
-                const c = comparisonFor(method, budget);
+                const c = comparisonFor(method, budget, source);
                 return c ? `${budget}%: ${pct(mean(c.baseline_scores))} → <strong>${pct(mean(c.variant_scores))}</strong> (${points(c.mean_difference)}, ${esc(c.decision)})` : '';
             });
             return `<strong>${esc(METHOD[method].short)}</strong>: ${parts.join('; ')}.`;
-        }).concat(['Flooded-class mIoU on the held-out test split; "helps" means the 95% interval excludes zero and every seed improved.']), 'Before → after, at a glance');
+        }).concat([`Flooded-class mIoU on the held-out test split; "helps" means the 95% interval excludes zero and every seed improved.`]), `${STATE_NAME[base]} → ${STATE_NAME[source].toLowerCase()}, at a glance`);
     }
-    const best = [...data.summary].filter(s => s.budget === 100).sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0];
+    const best = [...bundle('before').summary].filter(s => s.budget === 100).sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0];
     const unet = effectFor('unet')?.full.mean;
     return takeaways([
-        best ? `Best original model at 100% labels: <strong>${esc(METHOD[best.method].name)}</strong>, ${meanSd(best.full.flooded_miou)} flooded mIoU.` : '',
+        best ? `Best model at 100% labels: <strong>${esc(METHOD[best.method].name)}</strong>, ${meanSd(best.full.flooded_miou)} flooded mIoU.` : '',
         unet != null ? `Four times the labels change the U-Net by ${points(unet)} on average.` : '',
-        `SLIC + RF stays far behind (about ${pct(summaryFor('rf', 100)?.full.flooded_miou.mean, 0)}): colour and texture alone confuse floodwater with flooded roads.`
+        `SLIC + RF stays far behind (about ${pct(summaryFor('rf', 100)?.full.flooded_miou.mean, 0)}): colour and texture alone confuse floodwater with flooded roads.`,
+        uniform ? 'All three models handle the class imbalance the same way: the same capped class weights and all of the training data.' : ''
     ]);
 }
 
@@ -302,34 +355,36 @@ function overview() {
     const testOverlap = overlap ? `${num(overlap.summary.test.overlapping_train)} / ${num(overlap.summary.test.images)}` : '—';
     const hero = `<div class="fn-hero"><div class="fn-hero-copy"><div class="fn-tag">FLOODNET · A COMPARATIVE STUDY</div>`
         + `<h1>Reading the flood.<br><em>One pixel at a time.</em></h1>`
-        + `<p>How well can traditional machine learning, a pretrained U-Net and a CRF-refined U-Net find flooded buildings and roads in post-hurricane aerial images, with all the labels or only a quarter of them${showAfter() ? ', and how much did a pre-registered round of improvements raise them' : ''}?</p>`
+        + `<p>How well can traditional machine learning, a pretrained U-Net and a CRF-refined U-Net find flooded buildings and roads in post-hurricane aerial images, with all the labels or only a quarter of them${showAfter() ? ', and how much did a pre-registered round of improvements raise them' : showUnder() ? ', and does training on fewer “Other” pixels (undersampling) help' : ''}?</p>`
         + `<div class="fn-actions"><a class="fn-primary-btn" href="#results">Explore the findings →</a><a class="fn-secondary-btn" href="#explorer">Open the prediction explorer</a></div></div>`
         + `<div class="fn-hero-visual">${sample ? zoomable(`<img src="${esc(sample.rgb)}" alt="Held-out FloodNet aerial image ${esc(sample.image_id)}">`, `held-out image ${sample.image_id}`, { title: `Held-out test image ${sample.image_id}`, hires: sample.id, caption: 'Official test split' }) + `<span class="fn-hero-stamp" data-plain>HELD-OUT IMAGE ${esc(sample.image_id)}</span>` : ''}</div></div>`;
     let tiles;
     if (compareMode()) {
-        const gains = after.comparisons.filter(c => c.decision === 'helps').sort((a, b) => b.mean_difference - a.mean_difference);
-        const top = gains[0];
-        const bestAfter = [...after.summary].sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0];
-        const bestBefore = summaryFor(bestAfter.method, bestAfter.budget);
+        const [base, other] = pairSources();
+        const ordered = [...bundle(other).comparisons].sort((a, b) => b.mean_difference - a.mean_difference);
+        const top = ordered.find(c => c.decision === 'helps');
+        const bestOther = [...bundle(other).summary].sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0];
+        const bestBase = summaryFor(bestOther.method, bestOther.budget, base);
         tiles = metricCards([
             { value: num(total), label: 'Audited image–mask pairs', note: 'Official train / validation / test' },
-            { value: `${num(data.runs.length)} + ${num(after.runs.length)}`, label: 'Original + improved runs', note: '3 methods × 2 budgets × 3 seeds, each' },
-            { value: top ? points(top.mean_difference) : '—', label: 'Largest clear gain', note: top ? `${METHOD[top.method].short} · ${top.budget}% · ${pct(mean(top.baseline_scores))} → ${pct(mean(top.variant_scores))}` : '' },
-            { value: `${pct(bestBefore.full.flooded_miou.mean)} → ${pct(bestAfter.full.flooded_miou.mean)}`, label: 'Best flooded-class mIoU', note: `${METHOD[bestAfter.method].short} · ${bestAfter.budget}% · before → after` }
+            { value: `${num(bundle(base).runs.length)} + ${num(bundle(other).runs.length)}`, label: `${STATE_NAME[base]} + ${STATE_NAME[other].toLowerCase()} runs`, note: '3 methods × 2 budgets × 3 seeds, each' },
+            top ? { value: points(top.mean_difference), label: 'Largest clear gain', note: `${METHOD[top.method].short} · ${top.budget}% · ${pct(mean(top.baseline_scores))} → ${pct(mean(top.variant_scores))}` }
+                : { value: points(ordered[0]?.mean_difference), label: 'Largest mean change', note: ordered[0] ? `${METHOD[ordered[0].method].short} · ${ordered[0].budget}% · ${ordered[0].decision}` : '' },
+            { value: `${pct(bestBase.full.flooded_miou.mean)} → ${pct(bestOther.full.flooded_miou.mean)}`, label: 'Best flooded-class mIoU', note: `${METHOD[bestOther.method].short} · ${bestOther.budget}% · ${STATE_NAME[base]} → ${STATE_NAME[other].toLowerCase()}` }
         ]);
     } else {
         tiles = metricCards([
             { value: num(total), label: 'Audited image–mask pairs', note: 'Official train / validation / test' },
             { value: `${num(data.protocol.trained_runs)} + ${num(data.protocol.hybrid_runs)}`, label: 'Trained models + CRF-refined runs', note: `2 trained methods × 2 budgets × ${data.protocol.train_seeds.length} seeds; the hybrid adds no training` },
-            { value: best ? meanSd(best.full.flooded_miou) : '—', label: `Best flooded-class mIoU${showAfter() ? ` (${STATE_NAME[source].toLowerCase()})` : ''}`, note: best ? `${METHOD[best.method].short} · ${best.budget}% · mean ± SD` : 'Awaiting evaluation' },
+            { value: best ? meanSd(best.full.flooded_miou) : '—', label: `Best flooded-class mIoU${source !== 'before' ? ` (${STATE_NAME[source].toLowerCase()})` : ''}`, note: best ? `${METHOD[best.method].short} · ${best.budget}% · mean ± SD` : 'Awaiting evaluation' },
             { value: testOverlap, label: 'Test images overlapping a train frame', note: 'Verified by keypoint matching' }
         ]);
     }
     const intro = `<div class="fn-grid fn-two-col">`
         + card('A small experiment, a specific question', `<p>The primary score is the mean IoU of the two target classes, flooded buildings and flooded roads (${FN_MATH.inline('fmiou')}). Image IDs, input resolution and scoring rules stay fixed while the method and the labelled-data budget change.</p><div class="fn-flow"><div>RGB image</div><span>→</span><div>Learn / classify</div><span>→</span><div>Pixel labels</div></div><a href="#methodology">See how the methods work →</a>`)
-        + card('What this study can tell us', `<p>Measured segmentation quality, missed target regions, data-efficiency trade-offs, ${showAfter() ? 'what a pre-registered round of improvements changed, ' : ''}and the compute cost on one laptop.</p><p>It does not establish road safety, flood depth, emergency-response benefit or performance on a different flood event.</p><a href="#interpretation">Read the practical limits →</a>`)
+        + card('What this study can tell us', `<p>Measured segmentation quality, missed target regions, data-efficiency trade-offs, ${showAfter() ? 'what a pre-registered round of improvements changed, ' : showUnder() ? 'whether undersampling the majority class helps, ' : ''}and the compute cost on one laptop.</p><p>It does not establish road safety, flood depth, emergency-response benefit or performance on a different flood event.</p><a href="#interpretation">Read the practical limits →</a>`)
         + `</div>`;
-    const comparison = card(compareMode() ? 'The held-out comparison, before and after' : 'The held-out comparison', summaryTable());
+    const comparison = card(compareMode() ? `The held-out comparison, ${STATE_NAME[pairSources()[0]]} vs ${STATE_NAME[pairSources()[1]].toLowerCase()}` : 'The held-out comparison', summaryTable());
     return hero + notice() + tiles + overviewTakeaways() + comparison + intro;
 }
 
@@ -417,8 +472,17 @@ function regionCounts(budget) {
 }
 
 function improvedLine(method) {
+    if (showUnder()) {
+        const text = { rf: 'no class weights; every flooded region plus r × as many “Other” regions', unet: 'no class weights; each “Other” pixel kept with probability p, the rest ignored by the loss', hybrid: 'the same frozen CRF on each undersampled U-Net' }[method];
+        return `<p class="fn-improved"><span class="fn-state undersample">Undersampling</span> ${esc(text)}. <a href="#undersample">How →</a></p>`;
+    }
     if (!showAfter()) return '';
     return `<p class="fn-improved"><span class="fn-state after">After</span> ${esc(components(method).join(' + '))}. <a href="#improve">Why →</a></p>`;
+}
+
+function rfWeights() {
+    const w = runsFor('rf', 100)[0]?.class_weights;
+    return w ? `${[0, 1, 2].map(c => Number(w[c]).toFixed(2)).join(' / ')} at 100%` : '';
 }
 
 function methodology() {
@@ -426,17 +490,24 @@ function methodology() {
     html += takeaways([
         `Every method sees the same images, resolution (256×256), budgets (25% / 100%) and seeds (${data.protocol.train_seeds.join(', ')}); only the method changes.`,
         `The primary score is ${FN_MATH.inline('fmiou')}, from pooled pixel counts.`,
-        showAfter() ? `The improved ("after") models add one validated set of changes per method; their components were fixed on validation before the test split was opened.` : ''
+        uniform ? 'The class imbalance is handled the same way for all three models: the same capped inverse-frequency class weights, and all of the training data.' : '',
+        showAfter() ? `The improved ("after") models add one validated set of changes per method; their components were fixed on validation before the test split was opened.` : '',
+        showUnder() ? `The undersampling pipeline replaces the class weights with one shared rule: keep every flooded pixel or region, and only r times as much “Other” (r chosen on validation).` : ''
     ]);
     html += card('The shared preparation path', `<div class="fn-flow"><div>Audit originals</div><span>→</span><div>Remap labels</div><span>→</span><div>Resize + pad</div><span>→</span><div>Cache once</div><span>→</span><div>25% / 100%</div></div>`
         + `<p>Aspect ratio is preserved inside a 256×256 frame. Masks use nearest-neighbour resizing, and padded pixels are ignored in training and scoring. One stratified 25% subset (seed ${data.protocol.subset_seed}) is shared by every method and seed. Validation and test sets never change.</p>`);
     const rf = `<section class="fn-card fn-method-card"><span class="fn-pill rf">Traditional · CPU</span><h2 style="margin-top:12px">SLIC + Random Forest</h2>`
-        + `<p>Neighbouring pixels are grouped into about 250 superpixels. Each region is described by colour and texture, then classified by a class-balanced forest.</p>`
+        + `<p>Neighbouring pixels are grouped into about 250 superpixels. Each region is described by colour and texture, then classified by a class-weighted forest.</p>`
         + `<div class="fn-method-path"><span>RGB</span>→<span>SLIC regions</span>→<span>22 features</span>→<span>Forest</span></div>`
         + `<dl class="fn-definition-list"><dt>Colour</dt><dd>RGB/HSV mean and standard deviation</dd><dt>Texture</dt><dd>10-bin uniform LBP histogram</dd>`
-        + `<dt>Region label</dt><dd>Majority annotation, padding excluded</dd><dt>Forest</dt><dd>150 trees · maximum depth 20 · balanced weights</dd>`
-        + `<dt>Training cap</dt><dd>${num(data.protocol.rf_max_regions)} regions, keeping every flooded region</dd>`
+        + (uniform
+            ? `<dt>Region label</dt><dd>Majority annotation, padding excluded</dd><dt>Forest</dt><dd>150 trees · maximum depth 20</dd>`
+                + `<dt>Class weights</dt><dd>The U-Net's capped inverse-frequency weights: ${esc(rfWeights())}<br><small class="fn-muted">Other / building / road</small></dd>`
+                + `<dt>Training data</dt><dd>Every training region, none discarded</dd>`
+            : `<dt>Region label</dt><dd>Majority annotation, padding excluded</dd><dt>Forest</dt><dd>150 trees · maximum depth 20 · balanced weights</dd>`
+                + `<dt>Training cap</dt><dd>${num(data.protocol.rf_max_regions)} regions, keeping every flooded region</dd>`)
         + `<dt>Regions used</dt><dd>25%: ${regionCounts(25)}<br>100%: ${regionCounts(100)}<br><small class="fn-muted">Other / building / road</small></dd></dl>`
+        + (uniform ? `<p class="fn-small fn-muted">First version (kept for reference): sklearn “balanced” weights and a ${num(data.protocol.rf_max_regions)}-region cap that dropped two thirds of the “Other” regions at 100%. It was changed so that all three models handle the imbalance the same way. <a href="#results">Both versions compared →</a></p>` : '')
         + improvedLine('rf') + `</section>`;
     const unet = `<section class="fn-card fn-method-card unet"><span class="fn-pill unet">Deep learning · CUDA</span><h2 style="margin-top:12px">Lightweight U-Net</h2>`
         + `<p>A pretrained ResNet-18 encoder extracts features. A decoder with skip connections restores spatial detail and outputs three scores per pixel.</p>`
@@ -462,12 +533,13 @@ function methodology() {
         + `<h3 class="fn-eq-group">Data and training</h3>${FN_MATH.equations(['norm', 'weights', 'ce'])}`
         + `<h3 class="fn-eq-group">Refinement</h3>${FN_MATH.equations(['crf'])}`
         + (showAfter() ? `<h3 class="fn-eq-group">Improvement study</h3>${FN_MATH.equations(['aux', 'cosine', 'ema', 'tta', 'area'])}` : '')
-        + `<h3 class="fn-eq-group">Statistics</h3>${FN_MATH.equations(showAfter() ? ['budget', 'change', 'bootstrap', 'decision'] : ['budget', 'bootstrap', 'decision'])}`);
+        + (showUnder() ? `<h3 class="fn-eq-group">Undersampling pipeline</h3>${FN_MATH.equations(['keep', 'regions', 'ceKept'])}` : '')
+        + `<h3 class="fn-eq-group">Statistics</h3>${FN_MATH.equations(showAfter() ? ['budget', 'change', 'bootstrap', 'decision'] : showUnder() ? ['budget', 'changeUnder', 'bootstrap', 'decision'] : ['budget', 'bootstrap', 'decision'])}`);
     html += `<div class="fn-dark-card"><h3>Three seeds, one subset</h3><p>Every configuration is trained with seeds <strong>${data.protocol.train_seeds.join(', ')}</strong>. The seed changes forest sampling, network initialisation, data order and augmentation; the 25% image subset stays the same. Results report the mean, standard deviation and range, so a lucky or unlucky run cannot decide the comparison.</p></div>`;
     html += card('Fair comparison and model selection', `<details class="fn-details" open><summary>What is held constant?</summary><p>Image IDs within each budget, input resolution, target labels, validation and test sets, metrics, and each method's settings across budgets and seeds.</p></details>`
         + `<details class="fn-details"><summary>What differs between the methods?</summary><p>Hand-crafted region features and forest fitting versus learned pixel features and gradient training. This compares practical pipelines, not isolated architectures.</p></details>`
         + `<details class="fn-details"><summary>What happens during augmentation?</summary><p>Only U-Net training receives matched flips and quarter-turn rotations, plus mild image-only brightness/contrast changes. Validation and test inputs are never augmented${showAfter() ? ' (the improved U-Net averages flipped copies at test time instead)' : ''}.</p></details>`
-        + `<details class="fn-details"><summary>How is leakage controlled?</summary><p>Only training images supply features, class weights and subsets. Validation selects the U-Net checkpoint${showAfter() ? ', the CRF setting and the improved models\' components' : ' and the CRF setting'}. The ${data.protocol.trained_runs} trained runs and the overlap analysis were frozen before their test evaluation; the hybrid${showAfter() ? ' and the improvement study were each' : ' was'} frozen separately before ${showAfter() ? 'their own' : 'its own'} single test evaluation.</p></details>`
+        + `<details class="fn-details"><summary>How is leakage controlled?</summary><p>Only training images supply features, class weights and subsets. Validation selects the U-Net checkpoint${showAfter() ? ', the CRF setting and the improved models\' components' : showUnder() ? ', the CRF setting and the undersampling ratio' : ' and the CRF setting'}. The ${data.protocol.trained_runs} trained runs and the overlap analysis were frozen before their test evaluation; the hybrid${showAfter() ? ' and the improvement study were each' : ' was'} frozen separately before ${showAfter() ? 'their own' : 'its own'} single test evaluation.</p></details>`
         + `<details class="fn-details"><summary>Why is the hybrid not retrained?</summary><p>The methodology defines the hybrid as post-processing: it reuses each U-Net checkpoint unchanged, so any difference from the U-Net comes from the CRF alone.</p></details>`);
     return html;
 }
@@ -479,7 +551,7 @@ function classTable(run) {
 }
 
 function inspectorSource() {
-    return compareMode() ? 'before' : viewSource();
+    return viewSources()[0];
 }
 
 function inspectedRun() {
@@ -487,26 +559,23 @@ function inspectedRun() {
     return runs.find(r => r.id === state.metricRun) || runs[runs.length - 1];
 }
 
-function matchedAfterRun(run) {
-    return after?.runs.find(r => r.method === run.method && r.budget === run.budget && r.seed === run.seed);
-}
-
 function confusionChart(options) {
     return FN_CHARTS.confusion(inspectedRun().metrics.confusion_matrix, CLASS_SHORT, options);
 }
 
-function afterConfusionChart(options) {
-    return FN_CHARTS.confusion(matchedAfterRun(inspectedRun()).metrics.confusion_matrix, CLASS_SHORT, options);
+function otherConfusionChart(options) {
+    return FN_CHARTS.confusion(matchedRun(inspectedRun(), pairSources()[1]).metrics.confusion_matrix, CLASS_SHORT, options);
 }
 
 function runInspector() {
     const note = 'Rows are ground truth; each row sums to 100%. Pooled pixel counts, padding excluded. Outlined cells are correct predictions.';
     if (compareMode()) {
         const run = inspectedRun();
-        return `<div class="fn-grid fn-two-col fn-inspector-pair"><div><h3 class="fn-vis-title">${stateLabel('before')} ${esc(METHOD[run.method].short)} · ${run.budget}% · seed ${run.seed}</h3><div id="fn-class-metrics">${classTable(run)}</div>`
-            + `<div style="margin-top:16px">${chartBlock('Confusion matrix · before', confusionChart, { heading: 'h3', svg: false, note })}</div></div>`
-            + `<div><h3 class="fn-vis-title">${stateLabel('after')} ${esc(METHOD[run.method].short)} · ${run.budget}% · seed ${run.seed}</h3><div id="fn-class-metrics-after">${classTable(matchedAfterRun(run))}</div>`
-            + `<div style="margin-top:16px">${chartBlock('Confusion matrix · after', afterConfusionChart, { heading: 'h3', svg: false, note })}</div></div></div>`;
+        const [base, other] = pairSources();
+        return `<div class="fn-grid fn-two-col fn-inspector-pair"><div><h3 class="fn-vis-title">${stateLabel(base)} ${esc(METHOD[run.method].short)} · ${run.budget}% · seed ${run.seed}</h3><div id="fn-class-metrics">${classTable(run)}</div>`
+            + `<div style="margin-top:16px">${chartBlock(`Confusion matrix · ${STATE_NAME[base]}`, confusionChart, { heading: 'h3', svg: false, note })}</div></div>`
+            + `<div><h3 class="fn-vis-title">${stateLabel(other)} ${esc(METHOD[run.method].short)} · ${run.budget}% · seed ${run.seed}</h3><div id="fn-class-metrics-after">${classTable(matchedRun(run, other))}</div>`
+            + `<div style="margin-top:16px">${chartBlock(`Confusion matrix · ${STATE_NAME[other]}`, otherConfusionChart, { heading: 'h3', svg: false, note })}</div></div></div>`;
     }
     return `<div id="fn-class-metrics">${classTable(inspectedRun())}</div><div style="margin-top:20px">`
         + chartBlock('Confusion matrix', confusionChart, { heading: 'h3', svg: false, note })
@@ -517,11 +586,11 @@ function overlapStrataCard() {
     const overlap = overlapInfo();
     if (!overlap || !data.summary[0]?.overlap_low) return '';
     const targets = overlap.target_images;
-    const sources = compareMode() ? ['before', 'after'] : [viewSource()];
+    const sources = viewSources();
     const rows = sources.flatMap(source => bundle(source).summary.map(item => {
         const low = item.overlap_low.flooded_miou;
         const high = item.overlap_high.flooded_miou;
-        return `<tr><td>${sources.length > 1 ? stateLabel(source) : ''} ${esc(METHOD[item.method].short)}</td><td>${item.budget}%</td><td>${meanSd(low)}</td><td>${meanSd(high)}</td><td>${points(high.mean - low.mean)}</td></tr>`;
+        return `<tr><td>${sourceLabel(source, sources)} ${esc(METHOD[item.method].short)}</td><td>${item.budget}%</td><td>${meanSd(low)}</td><td>${meanSd(high)}</td><td>${points(high.mean - low.mean)}</td></tr>`;
     })).join('');
     const clean = summaryFor('unet', 100)?.clean.flooded_miou;
     return card('Does scene overlap inflate the scores?', `<p>${num(overlap.summary.test.overlapping_train)} of ${num(overlap.summary.test.images)} test images, and ${num(targets.overlapping)} of the ${num(targets.images)} that contain flooded buildings or roads, share ground with a training frame. A test set without overlap would hold almost no flooded targets, so this check splits the ${num(targets.images)} target images at their median overlap (${pct(targets.split_overlap, 0)}) and scores each half separately.</p>`
@@ -533,10 +602,10 @@ function overlapStrataCard() {
 function crfCard() {
     const hybrid = data.hybrid;
     if (!hybrid || !data.crf_effects.length) return '';
-    const sources = compareMode() ? ['before', 'after'] : [viewSource()];
+    const sources = viewSources();
     const rows = sources.flatMap(source => bundle(source).crf_effects.map(e => {
         const cell = key => `<td>${points(e.full[key].mean)}<span class="fn-seed-values"><br>${e.full[key].values.map(points).join(' · ')}</span></td>`;
-        return `<tr><td>${sources.length > 1 ? stateLabel(source) : ''} ${e.budget}%</td><td class="fn-score">${points(e.full.flooded_miou.mean)}<small>seeds: ${e.full.flooded_miou.values.map(points).join(' · ')}</small></td>${cell('building_iou')}${cell('road_iou')}${cell('building_recall')}${cell('road_recall')}</tr>`;
+        return `<tr><td>${sourceLabel(source, sources)} ${e.budget}%</td><td class="fn-score">${points(e.full.flooded_miou.mean)}<small>seeds: ${e.full.flooded_miou.values.map(points).join(' · ')}</small></td>${cell('building_iou')}${cell('road_iou')}${cell('building_recall')}${cell('road_recall')}</tr>`;
     })).join('');
     const label = params => `sxy ${params.bilateral.sxy} · srgb ${params.bilateral.srgb} · weight ${params.bilateral.compat}`;
     const grid = hybrid.grid.map(row => `<tr${row.selected ? ' class="fn-selected-row"' : ''}><td>${esc(row.round)}</td><td>${label(row.params)}${row.selected ? ' <span class="fn-pill good">selected</span>' : ''}</td><td>${points(row.mean_gain)}</td><td>${points(row.min_gain)} to ${points(row.max_gain)}</td></tr>`).join('');
@@ -549,7 +618,8 @@ function crfCard() {
     const atEdge = [Math.min(...sxys), Math.max(...sxys)].includes(hybrid.selected.bilateral.sxy)
         || [Math.min(...srgbs), Math.max(...srgbs)].includes(hybrid.selected.bilateral.srgb);
     const edgeNote = atEdge ? ' The chosen setting lies at the edge of the pre-set grid; values beyond it were not tried, to keep tuning minimal.' : '';
-    const afterNote = showAfter() ? ' The improved hybrid reuses the same setting on the improved U-Net (kernel widths doubled for its 512-px input).' : '';
+    const afterNote = showAfter() ? ' The improved hybrid reuses the same setting on the improved U-Net (kernel widths doubled for its 512-px input).'
+        : showUnder() ? ' The undersampled hybrid applies the same frozen setting to each undersampled U-Net.' : '';
     return `<section class="fn-card"><h2>Does CRF refinement help?</h2>`
         + `<p>Each hybrid run refines the exact U-Net checkpoint with the same seed and budget, so the change below is caused by the CRF alone. Values are the test-set change from that U-Net run to its refined version.</p>`
         + `<div class="fn-table-wrap"><table class="fn-table"><thead><tr><th>Labels</th><th>Flooded mIoU change</th><th>Building IoU</th><th>Road IoU</th><th>Building recall</th><th>Road recall</th></tr></thead><tbody>${rows}</tbody></table></div>`
@@ -559,22 +629,32 @@ function crfCard() {
         + `<div class="fn-downloads">${download('crf_tuning', 'CRF tuning CSV')}${download('hybrid_experiment', 'Hybrid freeze manifest')}</div></section>`;
 }
 
+function decisionTakeaways(comparisons) {
+    const ordered = [...comparisons].sort((a, b) => METHODS.indexOf(a.method) - METHODS.indexOf(b.method) || a.budget - b.budget);
+    const named = list => list.map(c => `${esc(METHOD[c.method].short)} ${c.budget}% (${points(c.mean_difference)})`).join(', ');
+    const helps = ordered.filter(c => c.decision === 'helps');
+    const hurts = ordered.filter(c => c.decision === 'hurts');
+    const unclear = ordered.filter(c => c.decision === 'no clear effect');
+    return [
+        `${helps.length} of ${ordered.length} method × budget comparisons clearly improved${helps.length ? `: ${named(helps)}` : ''}.`,
+        hurts.length ? `Clearly worse: ${named(hurts)}.` : '',
+        unclear.length ? `No clear change for ${named(unclear)}: the interval includes zero or the seeds disagree.` : ''
+    ];
+}
+
 function resultsTakeaways() {
     if (compareMode()) {
-        const ordered = [...after.comparisons].sort((a, b) => METHODS.indexOf(a.method) - METHODS.indexOf(b.method) || a.budget - b.budget);
-        const helps = ordered.filter(c => c.decision === 'helps');
-        const unclear = ordered.filter(c => c.decision !== 'helps');
-        return takeaways([
-            `${helps.length} of ${after.comparisons.length} method × budget comparisons clearly improved: ${helps.map(c => `${esc(METHOD[c.method].short)} ${c.budget}% (${points(c.mean_difference)})`).join(', ')}.`,
-            unclear.length ? `No clear change for ${unclear.map(c => `${esc(METHOD[c.method].short)} ${c.budget}% (${points(c.mean_difference)})`).join(', ')}: the seeds disagree.` : '',
-            `The ranking holds: the U-Net family stays far ahead of the Random Forest, which nevertheless gained the most.`
-        ]);
+        const other = pairSources()[1];
+        return takeaways(decisionTakeaways(bundle(other).comparisons).concat([
+            other === 'after' ? 'The ranking holds: the U-Net family stays far ahead of the Random Forest, which nevertheless gained the most.'
+                : `Majority IoU, mean change over both budgets: ${majorityByMethod('undersample')}; weighted mIoU follows it closely (table below).`
+        ]));
     }
     const source = viewSource();
     const best = [...bundle(source).summary].filter(s => s.budget === 100).sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0];
     const crf = bundle(source).crf_effects.find(e => e.budget === 100);
     return takeaways([
-        best ? `Best at 100% labels${showAfter() ? ` (${STATE_NAME[source].toLowerCase()})` : ''}: <strong>${esc(METHOD[best.method].name)}</strong>, ${meanSd(best.full.flooded_miou)}.` : '',
+        best ? `Best at 100% labels${source !== 'before' ? ` (${STATE_NAME[source].toLowerCase()})` : ''}: <strong>${esc(METHOD[best.method].name)}</strong>, ${meanSd(best.full.flooded_miou)}.` : '',
         `More labels: U-Net ${points(effectFor('unet', source)?.full.mean)}, SLIC + RF ${points(effectFor('rf', source)?.full.mean)} (25% → 100%, seed-matched).`,
         crf ? `DenseCRF refinement at 100%: ${points(crf.full.flooded_miou.mean)} over its own U-Net.` : ''
     ]);
@@ -582,18 +662,20 @@ function resultsTakeaways() {
 
 function resultsChart() {
     if (compareMode()) {
+        const [base, other] = pairSources();
         const groups = METHODS.flatMap(method => [25, 100].map(budget => {
-            const c = comparisonFor(method, budget);
+            const c = comparisonFor(method, budget, other);
             return {
                 label: `${METHOD[method].short} · ${budget}%`,
-                series: ['before', 'after'].map(source => ({
+                series: [base, other].map(source => ({
                     name: STATE_NAME[source], colour: STATE_COLOUR[source], stat: summaryFor(method, budget, source)?.full.flooded_miou || { mean: null, values: [] },
-                    note: source === 'after' && c ? points(c.mean_difference) : null
+                    note: source === other && c ? points(c.mean_difference) : null
                 }))
             };
         }));
-        return vis('Before and after, by method and budget', options => FN_CHARTS.rangeBars(groups, { ...options, large: true, seeds: data.protocol.train_seeds, label: 'Flooded-class mean IoU before and after the improvement study' }),
-            `${testLabel()}. Grey = frozen original, teal = pre-registered combined model; notes above the teal bars give the seed-matched change.`);
+        const colours = other === 'after' ? 'Grey = Before v1, teal = pre-registered combined model' : 'Grey = Before, violet = undersampling pipeline';
+        return vis(`${STATE_NAME[base]} and ${STATE_NAME[other].toLowerCase()}, by method and budget`, options => FN_CHARTS.rangeBars(groups, { ...options, large: true, seeds: data.protocol.train_seeds, label: `Flooded-class mean IoU, ${STATE_NAME[base]} and ${STATE_NAME[other].toLowerCase()}` }),
+            `${testLabel()}. ${colours}; notes above the coloured bars give the seed-matched change.`);
     }
     const source = viewSource();
     const groups = [25, 100].map(budget => ({
@@ -610,13 +692,13 @@ function resultsChart() {
 }
 
 function budgetCard() {
-    const sources = compareMode() ? ['before', 'after'] : [viewSource()];
+    const sources = viewSources();
     const rows = METHODS.map(method => `<tr><td>${methodPill(method)}<br>${esc(METHOD[method].name)}</td>${sources.map(source => {
         const e = effectFor(method, source)?.full;
         return `<td class="fn-score">${e?.mean == null ? 'N/A' : points(e.mean)}<small>${e ? e.values.map(points).join(' · ') : ''}</small></td>`;
     }).join('')}</tr>`).join('');
-    return card('Budget effect, seed by seed', `<p>Change in flooded-class mIoU from 25% to 100% labels, comparing runs with the same seed (${FN_MATH.inline('budget')}).</p><div class="fn-table-wrap"><table class="fn-table"><thead><tr><th>Method</th>${sources.map(s => `<th>${sources.length > 1 ? stateLabel(s) : ''} Mean change (seeds ${data.protocol.train_seeds.join(', ')})</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`
-        + (sources.length > 1 ? `<p class="fn-figure-note">After the improvements the 25% models gained more than the 100% models, so the extra labels are worth less than before.</p>` : ''));
+    return card('Budget effect, seed by seed', `<p>Change in flooded-class mIoU from 25% to 100% labels, comparing runs with the same seed (${FN_MATH.inline('budget')}).</p><div class="fn-table-wrap"><table class="fn-table"><thead><tr><th>Method</th>${sources.map(s => `<th>${sourceLabel(s, sources)} Mean change (seeds ${data.protocol.train_seeds.join(', ')})</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`
+        + (sources.includes('after') ? `<p class="fn-figure-note">After the improvements the 25% models gained more than the 100% models, so the extra labels are worth less than before.</p>` : ''));
 }
 
 function runMetrics(run) {
@@ -657,8 +739,8 @@ function trivialMetrics() {
 }
 
 function metricsCard() {
-    const sources = compareMode() ? ['before', 'after'] : [viewSource()];
-    const label = (method, budget, source) => `<td>${sources.length > 1 ? stateLabel(source) : ''} ${esc(METHOD[method].short)}</td><td>${budget}%</td>`;
+    const sources = viewSources();
+    const label = (method, budget, source) => `<td>${sourceLabel(source, sources)} ${esc(METHOD[method].short)}</td><td>${budget}%</td>`;
     const cell = (stat, primary) => `<td${primary ? ' class="fn-score"' : ''}>${meanSd(stat)}${primary ? `<small>seeds: ${seedValues(stat)}</small>` : ''}</td>`;
     const rowsA = [];
     const rowsB = [];
@@ -673,7 +755,7 @@ function metricsCard() {
     }
     const t = trivialMetrics();
     rowsA.push(`<tr class="fn-reference-row"><td colspan="2">Reference: label every pixel “Other”</td><td>${pct(t.minority)}</td><td>${pct(t.majority)}</td><td>${pct(t.miou)}</td><td>${pct(t.weighted)}</td><td>${pct(t.accuracy)}</td></tr>`);
-    return card(compareMode() ? 'Every metric, before and after' : 'Every metric, every configuration',
+    return card(compareMode() ? `Every metric, ${STATE_NAME[sources[0]]} and ${STATE_NAME[sources[1]].toLowerCase()}` : 'Every metric, every configuration',
         `<p>${esc(testLabel())}; mean ± standard deviation over seeds ${data.protocol.train_seeds.join(', ')}; each run scored on its pooled pixel counts, padding excluded. <strong>Minority IoU is the primary metric</strong>; the others are reported for completeness.</p>`
         + `<h3 class="fn-vis-title">Overall</h3><div class="fn-table-wrap"><table class="fn-table fn-metrics-table"><thead><tr><th>Method</th><th>Labels</th><th>Minority IoU ★<br><small>flooded building + road</small></th><th>Majority IoU<br><small>Other</small></th><th>3-class mIoU</th><th>Weighted mIoU<br><small>by pixel share</small></th><th>Pixel accuracy</th></tr></thead><tbody>${rowsA.join('')}</tbody></table></div>`
         + `<p class="fn-figure-note">The reference row shows why majority IoU, weighted mIoU and pixel accuracy are not used to rank the models: a model that never finds a single flooded pixel already scores ${pct(t.accuracy)} accuracy and ${pct(t.weighted)} weighted mIoU, because “Other” is ${pct(t.accuracy)} of the test pixels.</p>`
@@ -693,35 +775,79 @@ function metricGuideCard() {
         ['Recall', 'recall', 'Of the truly flooded pixels, the share that were found: low recall means misses.'],
         ['Dice', 'dice', 'Overlap like IoU but counting the overlap twice; Dice = 2·IoU / (1 + IoU), so it ranks models the same way.']
     ];
-    if (compareMode()) rows.push(['Change (Δ), 95% interval, decision', 'change', 'Seed-matched after − before; the interval and the pre-registered decision come from a paired bootstrap over the test images.']);
+    if (compareMode()) {
+        const [base, other] = pairSources();
+        rows.push(['Change (Δ), 95% interval, decision', other === 'after' ? 'change' : 'changeUnder', `Seed-matched ${STATE_NAME[other].toLowerCase()} − ${STATE_NAME[base]}; the interval and the pre-registered decision come from a paired bootstrap over the test images.`]);
+    }
     return card('What each metric means', `<div class="fn-table-wrap"><table class="fn-table fn-guide-table"><thead><tr><th>Metric</th><th>Formula</th><th>What it tells you</th></tr></thead><tbody>`
         + rows.map(([name, key, text]) => `<tr><td><strong>${esc(name)}</strong></td><td>${FN_MATH.inline(key)}</td><td>${esc(text)}</td></tr>`).join('')
         + `</tbody></table></div><p class="fn-figure-note">${FN_MATH.tex(String.raw`TP_c,\ FP_c,\ FN_c`)}: pooled true positives, false positives and false negatives of class ${FN_MATH.tex('c')} over the test images; ${FN_MATH.tex('n_c')}: true pixels of class ${FN_MATH.tex('c')}; ${FN_MATH.tex('N')}: all scored pixels.</p>`);
 }
 
+function deltaStat(method, budget, base, other, key) {
+    const baseRuns = runsFor(method, budget, base);
+    return seedStat(runsFor(method, budget, other).map(r => {
+        const match = baseRuns.find(x => x.seed === r.seed);
+        return match ? runMetrics(r)[key] - runMetrics(match)[key] : null;
+    }));
+}
+
+function shiftTable(base, other, methods = METHODS) {
+    const rows = methods.flatMap(method => data.protocol.budgets.map(budget => {
+        if (!runsFor(method, budget, other).length || !runsFor(method, budget, base).length) return '';
+        const c = comparisonFor(method, budget, other);
+        const b = configMetrics(method, budget, base);
+        const o = configMetrics(method, budget, other);
+        const cell = (key, primary) => {
+            const d = deltaStat(method, budget, base, other, key);
+            return `<td${primary ? ' class="fn-score"' : ''}>${pct(b[key].mean)} → <strong>${pct(o[key].mean)}</strong>${primary ? `<small>Δ ${points(d.mean)} (${d.values.map(points).join(', ')})</small>` : `<span class="fn-seed-values"><br>Δ ${points(d.mean)}</span>`}</td>`;
+        };
+        return `<tr><td><span class="fn-dot" style="background:${METHOD[method].colour}"></span>${esc(METHOD[method].short)}</td><td>${budget}%</td>${cell('minority', true)}<td class="fn-nowrap">${c ? interval(c.ci) : 'N/A'}</td><td>${c ? decisionPill(c.decision) : ''}</td>${cell('majority')}${cell('weighted')}</tr>`;
+    })).join('');
+    return `<div class="fn-table-wrap"><table class="fn-table fn-metrics-table fn-shift-table"><thead><tr><th>Method</th><th>Labels</th><th>Minority IoU ★<br><small>${esc(STATE_NAME[base])} → ${esc(STATE_NAME[other].toLowerCase())}</small></th><th>95% CI</th><th>Decision</th><th>Majority IoU<br><small>Other</small></th><th>Weighted mIoU<br><small>by pixel share</small></th></tr></thead><tbody>${rows}</tbody></table></div>`
+        + `<p class="fn-figure-note">Mean over seeds ${data.protocol.train_seeds.join(', ')}; the number under each pair is the mean seed-matched change. The interval and decision (pre-registered paired bootstrap, ${num(5000)} resamples) apply to the primary metric, minority IoU; the other columns are descriptive.</p>`;
+}
+
+function firstVersionCard() {
+    if (!uniform || state.view !== 'before') return '';
+    const n = runsFor('rf', 100, 'original')[0]?.region_class_counts;
+    const u = runsFor('rf', 100)[0]?.region_class_counts;
+    return card('First version of Before (kept for reference)', `<p>The first Before results did not treat the three models the same way. The U-Net (and therefore the U-Net + CRF) used capped inverse-frequency class weights on every training pixel. The Random Forest used sklearn's uncapped “balanced” weights and a ${num(data.protocol.rf_max_regions)}-region training cap${n && u ? `, which at 100% labels kept only ${num(n[0])} of ${num(u[0])} “Other” regions` : ''}. Comparing the three models then mixes up the model with its imbalance handling.</p>`
+        + `<p>Before now gives the forest the U-Net's own class weights and every training region. The U-Net and U-Net + CRF runs did not change; only the six forests were retrained. The first-version forest stays here for reference:</p>`
+        + shiftTable('original', 'before', ['rf']));
+}
+
 function resultsPage() {
     if (!data.summary.length) return header('results', 'The held-out comparison.') + notice() + empty();
-    let html = header('results', compareMode() ? 'Before and after, on held-out images.' : 'The held-out comparison.', 'Primary metric: mean IoU of flooded building and flooded road, pooled over the test images. Each configuration is run with three seeds.');
+    const [base, other] = pairSources();
+    let html = header('results', compareMode() ? `${STATE_NAME[base]} and ${STATE_NAME[other].toLowerCase()}, on held-out images.` : 'The held-out comparison.', 'Primary metric: mean IoU of flooded building and flooded road (minority IoU), pooled over the test images. Each configuration is run with three seeds.');
     html += notice();
     html += resultsTakeaways();
-    if (compareMode()) html += card('All configurations, before → after', summaryTable());
+    if (compareMode()) {
+        html += card(`All configurations, ${STATE_NAME[base]} → ${STATE_NAME[other].toLowerCase()}`, summaryTable());
+        html += card('Minority, majority and weighted IoU: what changed', shiftTable(base, other));
+    }
     html += metricsCard();
+    html += firstVersionCard();
     html += metricGuideCard();
     html += resultsChart();
     html += budgetCard();
     html += crfCard();
     html += overlapStrataCard();
     const runs = bundle(inspectorSource()).runs;
-    if (!runs.some(r => r.id === state.metricRun)) state.metricRun = runs[runs.length - 1].id;
+    if (!runs.some(r => r.id === state.metricRun)) {
+        const old = ['original', 'before', 'undersample', 'after'].map(s => bundle(s)?.runs.find(r => r.id === state.metricRun)).find(Boolean);
+        state.metricRun = (old && runs.find(r => r.method === old.method && r.budget === old.budget && r.seed === old.seed) || runs[runs.length - 1]).id;
+    }
     const options = runs.map(r => `<option value="${esc(r.id)}" ${r.id === state.metricRun ? 'selected' : ''}>${esc(METHOD[r.method].short)} · ${r.budget}% · seed ${r.seed}</option>`).join('');
     html += `<section class="fn-card"><div class="fn-card-top"><h2>Inspect a single run</h2><div class="fn-control"><label for="fn-metric-run">Run</label><select id="fn-metric-run">${options}</select></div></div>${runInspector()}</section>`;
-    html += card('Download the numbers', `<p>Per-seed and per-image scores of the original models, as CSV.</p><div class="fn-downloads">${download('summary', 'Seed summary CSV')}${download('aggregate', 'All runs CSV')}${download('per_image', 'Per-image metrics CSV')}</div>`);
+    html += card('Download the numbers', `<p>Per-seed and per-image scores of the first-version runs, as CSV${uniform ? ' (the U-Net and U-Net + CRF rows are the Before runs; the forest rows are the first version)' : ''}.</p><div class="fn-downloads">${download('summary', 'Seed summary CSV')}${download('aggregate', 'All runs CSV')}${download('per_image', 'Per-image metrics CSV')}</div>`);
     return html;
 }
 
 
 function trainingPage() {
-    const sources = compareMode() ? ['before', 'after'] : [viewSource()];
+    const sources = viewSources();
     const nets = data.runs.filter(r => r.method === 'unet');
     let html = header('training', 'Quality has a computational cost.', 'The traditional baseline runs on the CPU; every U-Net run trains on the GPU. Timings describe this laptop.');
     html += notice();
@@ -735,16 +861,25 @@ function trainingPage() {
             `The improved Random Forest stays cheap to train (${seconds(summaryFor('rf', 100, 'after')?.training_seconds.mean)}), but its context features and 512-px superpixels make inference slower.`
         ]);
     }
+    if (under && sources.includes('undersample')) {
+        const t = (m, s) => summaryFor(m, 100, s)?.training_seconds.mean;
+        html += takeaways([
+            `Undersampling does not change the U-Net's cost per epoch (the same photos pass through the network; only the loss ignores some pixels): ${seconds(t('unet', 'undersample'))} instead of ${seconds(t('unet', 'before'))} at 100%.`,
+            `The undersampled forest trains on fewer regions: ${seconds(t('rf', 'undersample'))} instead of ${seconds(t('rf', 'before'))} at 100%.`
+        ]);
+    }
     const seeds = data.protocol.train_seeds;
     const lossSeed = state.lossSeed ?? seeds[0];
+    const isBase = source => sources.length > 1 && source === sources[0];
     html += `<div class="fn-grid fn-two-col">${[25, 100].map(budget => {
         const series = sources.flatMap(source => runsFor('unet', budget, source).map((r, i) => ({
-            label: `${sources.length > 1 ? `${STATE_NAME[source]} · ` : ''}seed ${r.seed}`, colour: SEED_COLOURS[i % SEED_COLOURS.length], dash: sources.length > 1 && source === 'before',
+            label: `${sources.length > 1 ? `${STATE_NAME[source]} · ` : ''}seed ${r.seed}`, colour: SEED_COLOURS[i % SEED_COLOURS.length], dash: isBase(source),
             values: r.history.map(e => e.val_flooded_miou), marker: r.best_epoch - 1,
-            markerLabel: sources.length > 1 && source === 'before' ? null : `s${r.seed} · epoch ${r.best_epoch} · ${pct(r.history[r.best_epoch - 1]?.val_flooded_miou)}`
+            markerLabel: isBase(source) ? null : `s${r.seed} · epoch ${r.best_epoch} · ${pct(r.history[r.best_epoch - 1]?.val_flooded_miou)}`
         })));
-        const note = sources.length > 1 ? 'Dashed = before (30 epochs max), solid = after (recipe: up to 60 epochs, cosine LR, weight averaging); circle = selected checkpoint.'
-            : 'Validation flooded mIoU per epoch; notes give each seed\'s selected checkpoint. Its epoch-to-epoch swings are why each configuration has three seeds.';
+        const note = sources.includes('after') ? 'Dashed = Before v1 (30 epochs max), solid = after (recipe: up to 60 epochs, cosine LR, weight averaging); circle = selected checkpoint.'
+            : sources.length > 1 ? 'Dashed = Before (class weights), solid = undersampling (no weights, “Other” thinned); same 30-epoch schedule; circle = selected checkpoint.'
+                : 'Validation flooded mIoU per epoch; notes give each seed\'s selected checkpoint. Its epoch-to-epoch swings are why each configuration has three seeds.';
         return vis(`U-Net · ${budget}% labels: validation score`, options => FN_CHARTS.lines(series, { ...options, max: 1, percent: true, label: `Validation flooded mIoU, ${budget}% labels`, note: 'Circle = selected checkpoint' }), note);
     }).join('')}</div>`;
     const seedButtons = seeds.map(s => `<button type="button" class="${s === lossSeed ? 'on' : ''}" data-loss-seed="${s}" aria-pressed="${s === lossSeed}">Seed ${s}</button>`).join('');
@@ -757,8 +892,8 @@ function trainingPage() {
             if (!run) return;
             const prefix = sources.length > 1 ? `${STATE_NAME[source]} · ` : '';
             const validation = run.history.map(e => e.val_loss);
-            series.push({ label: `${prefix}training`, colour: source === 'after' ? '#0891b2' : '#4f46e5', values: run.history.map(e => e.train_loss), dash: sources.length > 1 && source === 'before' });
-            series.push({ label: `${prefix}validation`, colour: source === 'after' ? '#0e7490' : '#d97706', values: validation, dash: true });
+            series.push({ label: `${prefix}training`, colour: isBase(source) || sources.length === 1 ? '#4f46e5' : STATE_COLOUR[source], values: run.history.map(e => e.train_loss), dash: isBase(source) });
+            series.push({ label: `${prefix}validation`, colour: isBase(source) || sources.length === 1 ? '#d97706' : source === 'after' ? '#0e7490' : '#a21caf', values: validation, dash: true });
             if (source === sources[sources.length - 1]) {
                 vline = { index: run.best_epoch - 1, label: `selected epoch ${run.best_epoch}` };
                 const lowest = validation.indexOf(Math.min(...validation));
@@ -767,9 +902,9 @@ function trainingPage() {
         });
         if (!series.length) return empty('Run not exported');
         const render = options => FN_CHARTS.lines(series, { ...options, label: `Loss curves, ${budget}% labels, seed ${lossSeed}`, vline, points: lowestPoint ? [lowestPoint] : [] });
-        return `<div>${chartBlock(`${budget}% labels · seed ${lossSeed}`, render, { heading: 'h3' })}<p class="fn-small fn-muted">The checkpoint is chosen by validation flooded mIoU, not by loss.${sources.length > 1 ? ' The improved loss also contains no auxiliary term (10-class supervision was not selected).' : ''}</p></div>`;
+        return `<div>${chartBlock(`${budget}% labels · seed ${lossSeed}`, render, { heading: 'h3' })}<p class="fn-small fn-muted">The checkpoint is chosen by validation flooded mIoU, not by loss.${sources.includes('after') ? ' The improved loss also contains no auxiliary term (10-class supervision was not selected).' : sources.includes('undersample') ? ' The undersampled training loss is unweighted and counts only the kept pixels, so its level is not comparable with the weighted Before loss.' : ''}</p></div>`;
     }).join('')}</div></section>`;
-    const rows = data.summary.flatMap(item => sources.map(source => {
+    const rows = bundle(sources[0]).summary.flatMap(item => sources.map(source => {
         const s = summaryFor(item.method, item.budget, source);
         const runs = runsFor(item.method, item.budget, source);
         const peak = Math.max(...runs.map(r => r.peak_gpu_allocated_bytes ?? -1));
@@ -777,7 +912,7 @@ function trainingPage() {
         const training = item.method === 'hybrid' ? 'No training<span class="fn-seed-values"><br>reuses the U-Net checkpoint</span>'
             : `${seconds(s.training_seconds.mean)}<span class="fn-seed-values"><br>${seedValues(s.training_seconds, seconds)}</span>`;
         const epochs = s.epochs?.mean != null ? `${s.epochs.mean.toFixed(1)} (${s.epochs.min}–${s.epochs.max})` : 'N/A';
-        return `<tr><td>${sources.length > 1 ? stateLabel(source) : ''} ${esc(METHOD[item.method].short)} · ${item.budget}%</td><td>${training}</td>`
+        return `<tr><td>${sourceLabel(source, sources)} ${esc(METHOD[item.method].short)} · ${item.budget}%</td><td>${training}</td>`
             + `<td>${(s.inference_median_seconds.mean * 1000).toFixed(1)} ms</td><td>${epochs}</td>`
             + `<td>${peak < 0 || item.method === 'hybrid' ? 'N/A' : `${(peak / 2 ** 20).toFixed(0)} MiB`}</td><td>${esc(device)}${runs[0]?.precision ? `<br><small>${esc(runs[0].precision.replace('torch.', ''))}</small>` : ''}</td></tr>`;
     })).join('');
@@ -785,6 +920,7 @@ function trainingPage() {
     let timing = `<p>RF training time covers forest fitting. U-Net training time includes per-epoch validation and checkpointing. Shared preprocessing and RF feature extraction are recorded separately.</p>`
         + `<p>Inference is one image at a time, after warm-up. It starts from the processed RGB in memory and ends with a CPU mask. RF includes fresh SLIC segmentation and feature extraction (single-threaded forest prediction); U-Net includes normalisation, GPU transfer, the forward pass and argmax; U-Net + CRF adds the softmax and a single-threaded DenseCRF on the CPU. Decoding the original photo is excluded for all three.</p>`;
     if (showAfter()) timing += `<p>The improved models' timings include their 512-px input, the 8 forward passes of test-time augmentation and the 512 → 256 px averaging (${FN_MATH.inline('area')}).</p>`;
+    if (uniform) timing += `<p>The retrained Before forests${showUnder() ? ' and the undersampling runs' : ''} were trained while other runs shared the CPU and GPU, so their timings are less precise than those of the first-version runs.</p>`;
     if (data.dataset) timing += `<p>Shared preparation: <strong>${seconds(data.dataset.preprocessing_seconds)}</strong>; RF feature extraction: <strong>${seconds(data.dataset.feature_preparation_seconds)}</strong>${data.hybrid ? `; CRF validation tuning (all settings, all six U-Net runs): <strong>${seconds(data.hybrid.tuning_seconds)}</strong>` : ''}.</p>`;
     html += card('What is included in the timings?', timing);
     return html;
@@ -792,7 +928,7 @@ function trainingPage() {
 
 
 function panelSource(kind) {
-    return kind.endsWith('@after') ? 'after' : 'before';
+    return kind.split('@')[1] || 'before';
 }
 
 function panelMethod(kind) {
@@ -800,11 +936,12 @@ function panelMethod(kind) {
 }
 
 function explorerSources() {
-    return compareMode() ? ['before', 'after'] : [viewSource()];
+    return viewSources();
 }
 
 function explorerPage() {
-    let html = header('explorer', 'Look beyond the average.', `Every image comes from the held-out test split. The same image and budget are shown for all three approaches${showAfter() ? ', before and after the improvements' : ''}.`);
+    const [base, other] = pairSources();
+    let html = header('explorer', 'Look beyond the average.', `Every image comes from the held-out test split. The same image and budget are shown for all three approaches${compareMode() ? `, ${STATE_NAME[base]} and ${STATE_NAME[other].toLowerCase()}` : ''}.`);
     if (!data.samples.length) return html + notice() + empty('Prediction gallery pending', 'The gallery appears after data preparation and final evaluation.');
     const presence = [['all', 'All images'], ['building', 'Flooded building'], ['road', 'Flooded road'], ['both', 'Both targets'], ['neither', 'Neither target']];
     const overlap = [['all', 'All test images'], ['clean', 'No training overlap'], ['overlapping', 'Overlaps training']];
@@ -822,7 +959,7 @@ function explorerPage() {
         + `<label for="fn-opacity">Opacity <input id="fn-opacity" type="range" min="0" max="1" step="0.05" value="${state.opacity}"><output id="fn-opacity-value">${Math.round(state.opacity * 100)}%</output></label>`
         + data.classes.map(c => `<label><input type="checkbox" data-class="${c.id}" ${state.visible[c.id] ? 'checked' : ''}><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${c.colour}"></i>${esc(c.name)}</label>`).join('')
         + `</div><div id="fn-viewer" aria-live="polite"></div>`
-        + `<p class="fn-figure-note">Predictions come from the seed-${data.protocol.explorer_seed} replicate${showAfter() ? ' of the original and the improved models' : ''}; per-seed scores for every image are in the per-image CSV. Masks are at the processed resolution without padding. Target pixel share is an image statistic, not physical area.</p></section>`
+        + `<p class="fn-figure-note">Predictions come from the seed-${data.protocol.explorer_seed} replicate${compareMode() ? ` of both versions` : viewSource() !== 'before' ? ` of the ${STATE_NAME[viewSource()].toLowerCase()} models` : ''}; per-seed scores for every image are in the per-image CSV. Masks are at the processed resolution without padding. Target pixel share is an image statistic, not physical area.</p></section>`
         + `<section class="fn-card"><div class="fn-card-top"><h2>Held-out image library</h2><span id="fn-sample-count" class="fn-pill"></span></div><div id="fn-gallery" class="fn-sample-grid"></div><div id="fn-pager" class="fn-pager"></div></section>`;
     return html;
 }
@@ -845,11 +982,12 @@ function filteredSamples() {
         output.sort((a, b) => score(a) - score(b) || byId(a, b));
     } else if (state.sort.startsWith('gain-') || state.sort.startsWith('loss-')) {
         const method = state.sort.slice(5);
-        const b = explorerRun(method, state.budget, 'before');
-        const a = explorerRun(method, state.budget, 'after');
+        const [base, other] = pairSources();
+        const b = explorerRun(method, state.budget, base);
+        const a = explorerRun(method, state.budget, other);
         const delta = s => {
-            const x = sampleMetrics(s, b?.id, 'before')?.flooded_miou;
-            const y = sampleMetrics(s, a?.id, 'after')?.flooded_miou;
+            const x = sampleMetrics(s, b?.id, base)?.flooded_miou;
+            const y = sampleMetrics(s, a?.id, other)?.flooded_miou;
             return s.presence.some(Boolean) && x != null && y != null ? y - x : null;
         };
         const sign = state.sort.startsWith('gain-') ? -1 : 1;
@@ -875,8 +1013,8 @@ function explorerFigures() {
     for (const method of METHODS) {
         for (const source of sources) {
             panels.push({
-                title: sources.length > 1 ? `${METHOD[method].short} · ${source}` : METHOD[method].short,
-                kind: source === 'after' ? `${method}@after` : method, source, method, run: explorerRun(method, state.budget, source)
+                title: sources.length > 1 ? `${METHOD[method].short} · ${STATE_NAME[source].toLowerCase()}` : METHOD[method].short,
+                kind: `${method}@${source}`, source, method, run: explorerRun(method, state.budget, source)
             });
         }
     }
@@ -910,8 +1048,9 @@ function updateExplorer() {
         + `<div class="fn-comparison${compare ? ' fn-comparison-compare' : ''}">${figures.map(f => {
             const iou = f.run ? sampleMetrics(selected, f.run.id, f.source)?.flooded_miou : null;
             let delta = '';
-            if (compare && f.source === 'after' && f.run) {
-                const base = sampleMetrics(selected, explorerRun(f.method, state.budget, 'before')?.id, 'before')?.flooded_miou;
+            if (compare && f.source === pairSources()[1] && f.run) {
+                const baseSource = pairSources()[0];
+                const base = sampleMetrics(selected, explorerRun(f.method, state.budget, baseSource)?.id, baseSource)?.flooded_miou;
                 if (iou != null && base != null) delta = ` <span class="fn-delta ${iou > base ? 'up' : iou < base ? 'down' : ''}">${points(iou - base)}</span>`;
             }
             const score = f.run ? `<span class="fn-figure-score">IoU ${pct(iou)}${delta}</span>` : '';
@@ -921,7 +1060,8 @@ function updateExplorer() {
                 : f.kind === 'truth' || f.run ? zoomable(`<canvas data-mask-kind="${f.kind}" aria-label="${esc(f.title)} for image ${esc(selected.image_id)}"></canvas>`, `${f.title}, image ${selected.image_id}`, { ...attrs, pixelated: '' })
                     : empty('Run not exported', '');
             const tag = f.source && compare ? `<span class="fn-state ${f.source}">${STATE_NAME[f.source]}</span>` : '';
-            return `<figure class="${f.source ? `fn-panel-${f.source}` : ''}"><figcaption><span class="fn-caption-name">${tag}${esc(compare && f.method ? METHOD[f.method].short : f.title)}</span>${score}</figcaption>${body}</figure>`;
+            const role = f.source && compare ? (f.source === pairSources()[1] ? 'fn-panel-after' : 'fn-panel-before') : '';
+            return `<figure class="${role}"><figcaption><span class="fn-caption-name">${tag}${esc(compare && f.method ? METHOD[f.method].short : f.title)}</span>${score}</figcaption>${body}</figure>`;
         }).join('')}</div><p class="fn-small fn-muted fn-viewer-hint">Select any panel to expand it. In the expanded view, ← / → flips between the ${figures.length} panels at the same zoom, so you can compare the same pixels.</p>`;
     drawMasks(selected);
 }
@@ -943,7 +1083,7 @@ function maskUrl(sample, kind) {
     const source = panelSource(kind);
     const run = explorerRun(panelMethod(kind), state.budget, source);
     if (!run) return null;
-    return source === 'after' ? after.samples[sample.id]?.predictions[run.id] : sample.predictions[run.id];
+    return sampleData(sample, source)?.predictions[run.id];
 }
 
 function renderPanel(canvas, photo, mask, width, height) {
@@ -1034,7 +1174,8 @@ function improvementCard() {
 
 function interpretation() {
     let html = header('interpretation', 'What do the findings support?', 'Read the measured trade-offs together with the limits of the dataset, the resolution and the experiment design.');
-    const complete = data.summary.length === METHODS.length * 2;
+    const B = bundle('before');
+    const complete = B.summary.length === METHODS.length * 2;
     if (!complete) {
         html += card('Data efficiency and method trade-offs', empty('Interpretation awaits final results', 'Findings are computed from the exported comparison.'));
     } else {
@@ -1048,21 +1189,27 @@ function interpretation() {
             return `${points(e.mean)} on average (${all}; range ${points(e.min)} to ${points(e.max)})`;
         };
         const recall = (method, key) => `${pct(full(method, 25)[key].mean, 0)} → ${pct(full(method, 100)[key].mean, 0)}`;
-        const best = [...data.summary].filter(s => s.budget === 100).sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0];
-        const unetBeatsRf = runsFor('unet', 25).concat(runsFor('unet', 100)).every(u => data.runs.filter(r => r.method === 'rf').every(r => u.metrics.flooded_miou > r.metrics.flooded_miou));
+        const best = [...B.summary].filter(s => s.budget === 100).sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0];
+        const unetBeatsRf = runsFor('unet', 25).concat(runsFor('unet', 100)).every(u => B.runs.filter(r => r.method === 'rf').every(r => u.metrics.flooded_miou > r.metrics.flooded_miou));
         const bestAfter = showAfter() ? [...after.summary].filter(s => s.budget === 100).sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0] : null;
-        html += `<div class="fn-dark-card"><h3>Headline</h3><p>With all training labels, the original U-Net scores <strong>${points(gap).replace('+', '')}</strong> higher flooded-class mIoU than SLIC + Random Forest on the official test split (mean of ${data.protocol.train_seeds.length} seeds)${unetBeatsRf ? '; every U-Net run beats every RF run' : ''}. The best original approach at 100% labels is <strong>${esc(METHOD[best.method].name)}</strong> at ${meanSd(best.full.flooded_miou)}.`
+        html += `<div class="fn-dark-card"><h3>Headline</h3><p>With all training labels, the U-Net scores <strong>${points(gap).replace('+', '')}</strong> higher flooded-class mIoU than SLIC + Random Forest on the official test split (mean of ${data.protocol.train_seeds.length} seeds)${unetBeatsRf ? '; every U-Net run beats every RF run' : ''}. The best Before approach at 100% labels is <strong>${esc(METHOD[best.method].name)}</strong> at ${meanSd(best.full.flooded_miou)}.`
             + (bestAfter ? ` After the improvement study the best at 100% is still ${esc(METHOD[bestAfter.method].name)} (${meanSd(bestAfter.full.flooded_miou)}); the largest gains were at 25% labels and for the Random Forest.` : '') + `</p></div>`;
         html += improvementCard();
-        html += card('Data efficiency', `<p class="fn-insight">Going from 25% to 100% of the labels changes the original U-Net by ${describe(unet)}, and SLIC + RF by ${describe(rf)}.</p>`
+        html += undersampleCard();
+        const rfGains = rf.full.values.every(v => v > 0) && rf.full.mean > 0.01;
+        const rfText = rfGains
+            ? `With the same class weights as the U-Net and every training region, SLIC + RF also profits from the extra labels: building recall goes ${recall('rf', 'building_recall')} and road recall ${recall('rf', 'road_recall')}. Its ceiling stays low, though: superpixel colour and texture cannot separate open floodwater from a flooded road.`
+            : `SLIC + RF does use the extra labels: building recall goes ${recall('rf', 'building_recall')} and road recall ${recall('rf', 'road_recall')}. It also raises more false alarms, mostly in scenes without flooded infrastructure, so IoU does not improve. Superpixel colour and texture seem to be the limit: many RF false alarms fall on open floodwater, which looks much like a flooded road.`;
+        html += card('Data efficiency', `<p class="fn-insight">Going from 25% to 100% of the labels changes the U-Net by ${describe(unet)}, and SLIC + RF by ${describe(rf)}.</p>`
             + `<p>These are seed-matched differences: the same seed is trained at both budgets, so the comparison isolates the labelled-data change. The U-Net gain varies a lot between seeds, so a single run could have under- or over-stated it. Three seeds show stability, not statistical significance.</p>`
-            + `<p>SLIC + RF does use the extra labels: building recall goes ${recall('rf', 'building_recall')} and road recall ${recall('rf', 'road_recall')}. It also raises more false alarms, mostly in scenes without flooded infrastructure, so IoU does not improve. Superpixel colour and texture seem to be the limit: many RF false alarms fall on open floodwater, which looks much like a flooded road.${showAfter() ? ' Giving each superpixel its neighbours\' features and the ten original labels is what lifted it most in the improvement study.' : ''}</p>`);
-        if (data.crf_effects.length && data.hybrid) {
-            const effect = budget => data.crf_effects.find(e => e.budget === budget).full;
-            const consistent = data.crf_effects.every(e => e.full.flooded_miou.values.every(v => v > 0)) ? 'improved every U-Net run at both budgets'
-                : data.crf_effects.every(e => e.full.flooded_miou.values.every(v => v < 0)) ? 'lowered every U-Net run at both budgets' : 'did not change every U-Net run in the same direction';
+            + `<p>${rfText}${showAfter() ? ' Giving each superpixel its neighbours\' features and the ten original labels is what lifted it most in the improvement study.' : ''}</p>`
+            + (uniform && state.view === 'before' ? `<p class="fn-small fn-muted">The first-version forest (balanced weights, ${num(data.protocol.rf_max_regions)}-region cap) changed by ${points(effectFor('rf', 'original').full.mean)} with more labels: at 100% its cap discarded most of the extra “Other” regions. See <a href="#results">Results</a>.</p>` : ''));
+        if (B.crf_effects.length && data.hybrid) {
+            const effect = budget => B.crf_effects.find(e => e.budget === budget).full;
+            const consistent = B.crf_effects.every(e => e.full.flooded_miou.values.every(v => v > 0)) ? 'improved every U-Net run at both budgets'
+                : B.crf_effects.every(e => e.full.flooded_miou.values.every(v => v < 0)) ? 'lowered every U-Net run at both budgets' : 'did not change every U-Net run in the same direction';
             const classes = budget => `building IoU ${points(effect(budget).building_iou.mean)}, road IoU ${points(effect(budget).road_iou.mean)}`;
-            html += card('Does CRF refinement help?', `<p class="fn-insight">On the test split, DenseCRF refinement changes the original flooded-class mIoU by ${points(effect(25).flooded_miou.mean)} at 25% labels and ${points(effect(100).flooded_miou.mean)} at 100%; it ${consistent}.</p>`
+            html += card('Does CRF refinement help?', `<p class="fn-insight">On the test split, DenseCRF refinement changes the U-Net's flooded-class mIoU by ${points(effect(25).flooded_miou.mean)} at 25% labels and ${points(effect(100).flooded_miou.mean)} at 100%; it ${consistent}.</p>`
                 + `<p>Per class: ${classes(25)} at 25%; ${classes(100)} at 100%. The setting was chosen on validation (mean gain ${points(data.hybrid.selected_mean_gain)}) before the test split was scored, and validation ${data.hybrid.adopted ? 'adopted' : 'rejected'} refinement. The CRF only reuses each U-Net's own probabilities and the image colours, so these changes come from sharper, colour-aware boundaries rather than new learning. The cost is roughly ${(summaryFor('hybrid', 100).inference_median_seconds.mean * 1000 - summaryFor('unet', 100).inference_median_seconds.mean * 1000).toFixed(0)} ms more CPU time per image.`
                 + (showAfter() ? ` On the improved U-Net (smoother, test-time-augmented probabilities) the CRF adds less: ${points(after.crf_effects.find(e => e.budget === 100).full.flooded_miou.mean)} at 100%.` : '') + `</p>`);
         }
@@ -1078,8 +1225,8 @@ function interpretation() {
     html += card('Six representative scenes', `<p>Chosen by target presence and pixel coverage, never by prediction quality. Select a photo to expand it, or open the scene in the explorer or the step-by-step walkthrough.</p>`
         + (reps.length ? `<div class="fn-rep-grid">${reps.map(s => `<div class="fn-rep">${zoomable(`<img src="${esc(s.rgb)}" loading="lazy" alt="Representative image ${esc(s.image_id)}">`, `representative image ${s.image_id}`, { group: 'representatives', title: `Image ${s.image_id}`, hires: s.id, caption: `${targetText(s)} · ${pct(s.target_fraction)} target pixels` })}`
             + `<span>Image ${plain(s.image_id)} · ${pct(s.target_fraction)} target pixels<br><a href="#explorer" data-representative="${esc(s.id)}">Explorer →</a> <a href="#walkthrough" data-walkthrough="${esc(s.id)}">Step by step →</a></span></div>`).join('')}</div>` : empty('Representative scenes pending')));
-    html += card('Failure cases deserve a closer look', `<p>In the explorer, sort by a model's lowest target IoU to examine missed or confused infrastructure${showAfter() ? ', or, in the Compare view, by its largest gain or loss after the improvements' : ''}.</p><a class="fn-primary-btn" href="#explorer" data-failures="unet">Inspect U-Net failure cases →</a>`);
-    html += card('Limits on interpretation', `<ul>${data.limitations.map(x => `<li>${esc(x)}</li>`).join('')}${showAfter() ? '<li>The improvement study was designed after the original test results had been seen. Its choices were fixed in advance or made on validation, and its test split was scored once after its own freeze; seven changes across several models are still many comparisons.</li>' : ''}</ul><p>SDG 11 and SDG 13 motivate the study. Real-world benefit for responders would need separate validation.</p>`);
+    html += card('Failure cases deserve a closer look', `<p>In the explorer, sort by a model's lowest target IoU to examine missed or confused infrastructure${compareMode() ? `, or by its largest gain or loss (${STATE_NAME[pairSources()[0]]} → ${STATE_NAME[pairSources()[1]].toLowerCase()})` : ''}.</p><a class="fn-primary-btn" href="#explorer" data-failures="unet">Inspect U-Net failure cases →</a>`);
+    html += card('Limits on interpretation', `<ul>${data.limitations.map(x => `<li>${esc(x)}</li>`).join('')}${showAfter() ? '<li>The improvement study was designed after the original test results had been seen. Its choices were fixed in advance or made on validation, and its test split was scored once after its own freeze; seven changes across several models are still many comparisons.</li>' : ''}${showUnder() ? '<li>The undersampling study was also designed after the earlier test results had been seen. Its rule, ratio grid and decision rule were written down before training, the ratio was chosen on validation, and its test split was scored once after its own freeze.</li>' : ''}${uniform && state.view === 'before' ? '<li>Before was revised after its first test evaluation so that all three models handle the imbalance the same way; only the forest changed, the rule was fixed in advance, and the first version is kept and reported.</li>' : ''}</ul><p>SDG 11 and SDG 13 motivate the study. Real-world benefit for responders would need separate validation.</p>`);
     return html;
 }
 
@@ -1089,17 +1236,20 @@ function reproducibility() {
     const p = data.protocol;
     html += card('Protocol at a glance', `<dl class="fn-definition-list"><dt>Export schema</dt><dd>Version ${data.schema_version}</dd><dt>Subset seed</dt><dd>${p.subset_seed}</dd><dt>Training seeds</dt><dd>${p.train_seeds.join(', ')}</dd>`
         + `<dt>Model input</dt><dd>${p.size}×${p.size}, aspect ratio preserved${showAfter() ? ' (improved U-Net and RF: 512×512, scored on the same 256 px grid)' : ''}</dd><dt>Budgets</dt><dd>Nested 25% / 100%, stratified by target presence</dd>`
-        + `<dt>RF region sampling</dt><dd>${p.rf_region_sampling === 'keep_targets' ? 'Keep every flooded region' : 'Uniform'}, cap ${num(p.rf_max_regions)}</dd>`
+        + (uniform ? `<dt>RF imbalance handling</dt><dd>The U-Net's capped class weights; every training region (first version: “balanced” weights, cap ${num(p.rf_max_regions)})</dd>`
+            : `<dt>RF region sampling</dt><dd>${p.rf_region_sampling === 'keep_targets' ? 'Keep every flooded region' : 'Uniform'}, cap ${num(p.rf_max_regions)}</dd>`)
+        + (showUnder() ? `<dt>Undersampling ratio</dt><dd>${esc(ratioText())} (chosen on validation from r ∈ {${under.ratios.join(', ')}})</dd>` : '')
         + (data.hybrid ? `<dt>Hybrid CRF</dt><dd>${esc(data.hybrid.backend)}; selected on validation (${data.hybrid.adopted ? 'adopted' : 'rejected'})</dd>` : '')
         + `<dt>Ignored label</dt><dd>255 (generated padding)</dd><dt>Exported</dt><dd>${plain(new Date(data.exported_at).toLocaleString())}</dd></dl>`);
     if (data.experiment_identity) {
         html += card('Frozen experiment identities', `<p class="fn-small fn-muted">12 trained runs and the overlap analysis</p><p class="fn-hash">${esc(data.experiment_identity)}</p>`
             + (data.hybrid_experiment_identity ? `<p class="fn-small fn-muted">Hybrid runs and their CRF selection (frozen after validation tuning, before their test evaluation)</p><p class="fn-hash">${esc(data.hybrid_experiment_identity)}</p>` : '')
             + (showAfter() ? `<p class="fn-small fn-muted">Improvement study (96 runs; the 18 combined runs are the "after" models), frozen ${plain(new Date(after.frozen_at).toLocaleString())}</p><p class="fn-hash">${esc(after.experiment_identity)}</p>` : '')
+            + (uniform && !showAfter() ? `<p class="fn-small fn-muted">${showUnder() ? `Uniform Before and undersampling study (${num(under.study.runs)} runs, ${num(under.study.tested)} scored on the test split)` : 'Uniform Before (the six retrained forests)'}, frozen ${plain(new Date(uniform.frozen_at).toLocaleString())}</p><p class="fn-hash">${esc(uniform.experiment_identity)}</p>` : '')
             + `<p>Checkpoints stay in the local experiment workspace. This static page reads only exported display files.</p>`);
     }
-    const sources = compareMode() ? ['before', 'after'] : [viewSource()];
-    const rows = sources.flatMap(source => bundle(source).runs.map(r => `<tr><td>${sources.length > 1 ? stateLabel(source) : ''} ${esc(r.id)}</td><td>${esc(METHOD[r.method].short)}</td><td>${r.budget}%</td><td>${r.seed}</td><td>${pct(r.metrics.flooded_miou)}</td><td><span class="fn-hash" style="display:inline-block;padding:3px 6px">${esc(r.checkpoint_sha256.slice(0, 16))}…</span></td></tr>`)).join('');
+    const sources = viewSources();
+    const rows = sources.flatMap(source => bundle(source).runs.map(r => `<tr><td>${sourceLabel(source, sources)} ${esc(r.id.replace(/^undersample\//, ''))}</td><td>${esc(METHOD[r.method].short)}</td><td>${r.budget}%</td><td>${r.seed}</td><td>${pct(r.metrics.flooded_miou)}</td><td><span class="fn-hash" style="display:inline-block;padding:3px 6px">${esc(r.checkpoint_sha256.slice(0, 16))}…</span></td></tr>`)).join('');
     if (rows) html += card('All runs', `<div class="fn-table-wrap"><table class="fn-table"><thead><tr><th>Run</th><th>Method</th><th>Labels</th><th>Seed</th><th>Flooded mIoU</th><th>Checkpoint SHA-256</th></tr></thead><tbody>${rows}</tbody></table></div><p class="fn-figure-note">A hybrid run lists the checkpoint of the U-Net run it refines; it trains no weights of its own.</p>`);
     if (data.reproducibility) {
         html += card('Configuration and software', `<details class="fn-details"><summary>Saved configuration</summary><pre class="fn-code">${esc(JSON.stringify(data.reproducibility.config, null, 2))}</pre></details>`
@@ -1124,7 +1274,7 @@ function classChange(c, key) {
 }
 
 function resultTile(method, budget) {
-    const c = comparisonFor(method, budget);
+    const c = comparisonFor(method, budget, 'after');
     if (!c) return '';
     return `<div class="fn-result-tile"><span class="fn-result-label">${budget}% labels</span>`
         + `<strong>${pct(mean(c.baseline_scores))} → ${pct(mean(c.variant_scores))}</strong>`
@@ -1197,7 +1347,7 @@ const FN_TEACH = {
     },
 
     curves(budget, seed) {
-        const b = runsFor('unet', budget).find(r => r.seed === seed);
+        const b = runsFor('unet', budget, 'original').find(r => r.seed === seed);
         const a = runsFor('unet', budget, 'after').find(r => r.seed === seed);
         if (!b || !a) return '';
         const w = 260, h = 110;
@@ -1267,8 +1417,8 @@ function changesPage() {
     let html = header('changes', 'How the models got better, step by step.', 'What went wrong at first, which ideas were tried, the logic behind each one, how it works, and what it did. The "After" models are the ideas that survived, combined.');
     if (!after) return html + empty('Improvement study not exported', 'Run "floodnet improve export-after" to compare the original and improved models.');
     const s = after.study;
-    const c = (m, b) => comparisonFor(m, b);
-    const before = m => runsFor(m, 100);
+    const c = (m, b) => comparisonFor(m, b, 'after');
+    const before = m => runsFor(m, 100, 'original');
     const dropBefore = largestDrop(before('unet'));
     const dropAfter = largestDrop(runsFor('unet', 100, 'after'));
     const crfBefore = data.crf_effects.find(e => e.budget === 100)?.full.flooded_miou.mean;
@@ -1278,7 +1428,7 @@ function changesPage() {
     const unetBuilding = which => errorShare('unet', 100, which, 'building', 'building non-flooded');
 
     html += takeaways([
-        `<strong>At first</strong>, the models confused things that only look alike: open floodwater with flooded roads, dry buildings with flooded ones. The Random Forest reached only about ${pct(summaryFor('rf', 100).full.flooded_miou.mean, 0)} flooded mIoU, and the U-Net's training was jumpy.`,
+        `<strong>At first</strong>, the models confused things that only look alike: open floodwater with flooded roads, dry buildings with flooded ones. The Random Forest reached only about ${pct(summaryFor('rf', 100, 'original').full.flooded_miou.mean, 0)} flooded mIoU, and the U-Net's training was jumpy.`,
         `<strong>We tried ${s.changes_tested} ideas</strong>, each on its own first, and kept only those that helped on validation images. Then we trained the kept ideas together and scored the held-out test split once.`,
         `<strong>The result</strong>: the Random Forest gained about ${points(mean([c('rf', 25).mean_difference, c('rf', 100).mean_difference]))} at both budgets; the U-Net and U-Net + CRF gained clearly with 25% of the labels (${points(c('unet', 25).mean_difference)}, ${points(c('hybrid', 25).mean_difference)}), but not clearly with all labels.`
     ], 'The story in one minute');
@@ -1412,7 +1562,7 @@ function changesPage() {
 
     html += card('What it cost', (() => {
         const rows = METHODS.map(method => [25, 100].map(budget => {
-            const b = summaryFor(method, budget);
+            const b = summaryFor(method, budget, 'original');
             const a = summaryFor(method, budget, 'after');
             const train = method === 'hybrid' ? 'no training (reuses the U-Net)' : `${seconds(b.training_seconds.mean)} → ${seconds(a.training_seconds.mean)}`;
             return `<tr><td>${esc(METHOD[method].short)} · ${budget}%</td><td>${train}</td><td>${(b.inference_median_seconds.mean * 1000).toFixed(1)} ms → ${(a.inference_median_seconds.mean * 1000).toFixed(1)} ms</td></tr>`;
@@ -1423,9 +1573,206 @@ function changesPage() {
 }
 
 
+function trainShares() {
+    const n = data.dataset.processed_distributions.train.pixel_counts;
+    const total = n.reduce((a, b) => a + b, 0);
+    return n.map(v => v / total);
+}
+
+function keepText(budget) {
+    const p = runsFor('unet', budget, 'undersample')[0]?.other_keep_probability;
+    return p == null ? 'N/A' : pct(p, 1);
+}
+
+function threeMetricTable(source, withReference = true) {
+    const rows = METHODS.flatMap(method => data.protocol.budgets.map(budget => {
+        const m = configMetrics(method, budget, source);
+        return `<tr><td><span class="fn-dot" style="background:${METHOD[method].colour}"></span>${esc(METHOD[method].short)}</td><td>${budget}%</td><td class="fn-score">${meanSd(m.minority)}</td><td>${meanSd(m.majority)}</td><td>${meanSd(m.weighted)}</td><td>${meanSd(m.accuracy)}</td></tr>`;
+    }));
+    if (withReference) {
+        const t = trivialMetrics();
+        rows.push(`<tr class="fn-reference-row"><td colspan="2">Label every pixel “Other”</td><td>${pct(t.minority)}</td><td>${pct(t.majority)}</td><td>${pct(t.weighted)}</td><td>${pct(t.accuracy)}</td></tr>`);
+    }
+    return `<div class="fn-table-wrap"><table class="fn-table fn-metrics-table"><thead><tr><th>Method</th><th>Labels</th><th>Minority IoU ★</th><th>Majority IoU</th><th>Weighted mIoU</th><th>Pixel accuracy</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+}
+
+function underFigure() {
+    const colour = data.classes.map(c => c.colour);
+    const n = 12;
+    const s = 12;
+    const label = (x, y) => (Math.abs(y - (1.5 + 0.7 * x)) < 1.1 ? 2 : x >= 8 && y <= 3 ? 1 : 0);
+    const kept = (x, y) => ((x * 7 + y * 13) % 10) < 3;
+    const panel = (mode, caption) => {
+        let cells = '';
+        for (let y = 0; y < n; y++) {
+            for (let x = 0; x < n; x++) {
+                const c = label(x, y);
+                const ignored = mode === 'under' && c === 0 && !kept(x, y);
+                const fill = ignored ? '#ffffff' : colour[c];
+                const opacity = c === 0 && !ignored ? 0.55 : 1;
+                cells += `<rect x="${x * s}" y="${y * s}" width="${s}" height="${s}" fill="${fill}" fill-opacity="${opacity}" stroke="#ffffff" stroke-width="1"/>`;
+                if (ignored) cells += `<line x1="${x * s + 3}" y1="${y * s + 3}" x2="${x * s + s - 3}" y2="${y * s + s - 3}" stroke="#cbd5e1" stroke-width="1"/>`;
+            }
+        }
+        return `<div><svg viewBox="0 0 ${n * s} ${n * s}" width="${n * s}" height="${n * s}" role="img" aria-label="${esc(caption)}">${cells}</svg><small>${esc(caption)}</small></div>`;
+    };
+    return `<figure class="fn-teach"><div class="fn-teach-pair">${panel('before', 'Before: every pixel counts, flooded pixels weighted up')}${panel('under', 'Undersampling: every flooded pixel, a few “Other”')}</div>`
+        + `<figcaption><b class="k" style="background:${colour[1]}"></b>flooded building <b class="k" style="background:${colour[2]}"></b>flooded road <b class="k" style="background:${colour[0]};opacity:.55"></b>“Other”, used for learning <b class="k" style="background:#fff;border:1px solid #cbd5e1"></b>“Other”, ignored by the loss. The photo itself is not changed: the model still sees every pixel, it just is not graded on the ignored ones.</figcaption></figure>`;
+}
+
+function ratioTable() {
+    const evidence = under.ratio?.validation_flooded_miou || {};
+    const choice = under.ratio?.choice || {};
+    const families = [['unet', 'U-Net<br><small class="fn-muted">also used for U-Net + CRF</small>'], ['rf', 'SLIC + RF']];
+    const rows = families.flatMap(([family, name]) => data.protocol.budgets.map(budget => {
+        const scores = evidence[`${family}_${budget}`] || {};
+        const chosen = choice[family]?.[String(budget)];
+        const ref = runsFor(family, budget, 'before').map(r => r.val_flooded_miou).filter(v => v != null);
+        const cells = under.ratios.map(r => {
+            const stat = seedStat(scores[String(r)] || []);
+            const on = Number(r) === Number(chosen);
+            return `<td${on ? ' class="fn-score fn-selected-cell"' : ''}>${meanSd(stat)}${on ? '<br><span class="fn-pill good">chosen</span>' : ''}<span class="fn-seed-values"><br>${seedValues(stat)}</span></td>`;
+        }).join('');
+        return `<tr><td>${name}</td><td>${budget}%</td>${cells}<td>${ref.length ? meanSd(seedStat(ref)) : 'N/A'}</td></tr>`;
+    })).join('');
+    return `<div class="fn-table-wrap"><table class="fn-table fn-ratio-table"><thead><tr><th>Model family</th><th>Labels</th>${under.ratios.map(r => `<th>r = ${r}</th>`).join('')}<th>Before<br><small>reference</small></th></tr></thead><tbody>${rows}</tbody></table></div>`
+        + `<p class="fn-figure-note">Validation minority IoU (flooded mIoU), mean ± SD over seeds ${data.protocol.train_seeds.join(', ')}. Rule, written down before training: ${esc(under.ratio?.rule || '')}</p>`;
+}
+
+function blackenFigure() {
+    const e = under.blacken?.example;
+    if (!e) return '';
+    const fig = (src, title, caption) => `<figure>${zoomable(`<img src="${esc(src)}" loading="lazy" alt="${esc(title)}">`, title, { group: 'blacken', title, caption })}<figcaption>${esc(title)}</figcaption></figure>`;
+    return `<div class="fn-blacken-grid"><div><p class="fn-idea-label">Training photo ${plain(e.train_id.replace('train_', ''))}</p><div class="fn-blacken-row">${fig(e.train_photo, 'Real training photo', 'What every other run trains on')}${fig(e.train_blackened, 'Blackened training photo', 'Every “Other” pixel set to black')}</div></div>`
+        + `<div><p class="fn-idea-label">Test photo ${plain(e.test_id.replace('test_', ''))} (real, as always)</p><div class="fn-blacken-row fn-blacken-row-3">${fig(e.test_truth, 'Ground truth', 'Annotated flooded building and road')}${fig(e.test_uniform, 'Before U-Net', 'Trained on real photos')}${fig(e.test_blacken, 'Blackened-photo U-Net', 'Trained on blackened photos')}</div></div></div>`
+        + `<p class="fn-figure-note">U-Net, 100% labels, seed ${data.protocol.explorer_seed}. Colours: amber = flooded building, teal = flooded road.</p>`;
+}
+
+function methodShift(method, other, key) {
+    return mean(data.protocol.budgets.map(budget => deltaStat(method, budget, 'before', other, key).mean));
+}
+
+function majorityByMethod(other) {
+    return METHODS.map(m => `${esc(METHOD[m].short)} ${points(methodShift(m, other, 'majority'))}`).join(', ');
+}
+
+function verdictText(comps) {
+    const named = list => list.map(c => `${esc(METHOD[c.method].short)} at ${c.budget}% (${points(c.mean_difference)})`).join(', ');
+    const helps = comps.filter(c => c.decision === 'helps');
+    const hurts = comps.filter(c => c.decision === 'hurts');
+    const fix = uniform?.comparisons?.length ? ` The larger change came from making Before fair: the forest with the U-Net's weights and every region gained ${uniform.comparisons.map(c => `${points(c.mean_difference)} at ${c.budget}%`).join(' and ')} over its first version.` : '';
+    if (helps.length > comps.length / 2) {
+        return `Undersampling is the better way to handle the imbalance here: it clearly helped ${named(helps)}${hurts.length ? `, and clearly hurt only ${named(hurts)}` : ''}.${fix}`;
+    }
+    return `Undersampling is not a better fix for the imbalance than the class weights already in Before. It clearly helped only ${helps.length ? named(helps) : 'no configuration'}${hurts.length ? `, clearly hurt ${named(hurts)}` : ''}, and made no clear difference elsewhere. Before (capped class weights, all training data) stays the reference pipeline.${fix}`;
+}
+
+function metricShift(base, other, key) {
+    const values = METHODS.flatMap(method => data.protocol.budgets.map(budget => deltaStat(method, budget, base, other, key).mean)).filter(v => v != null);
+    return { mean: mean(values), min: Math.min(...values), max: Math.max(...values) };
+}
+
+function undersamplePage() {
+    let html = header('undersample', 'Undersampling: show the models less “Other”.', 'The flooded classes are rare. Before handles that by weighting them up; this pipeline removes most of the common class from training instead, in exactly the same way for all three models.');
+    if (!under) return html + empty('Undersampling study not exported', 'Run "floodnet undersample export" to add it.');
+    const shares = trainShares();
+    const t = trivialMetrics();
+    const comps = under.comparisons;
+    const black = under.blacken;
+    const maj = metricShift('before', 'undersample', 'majority');
+    const wei = metricShift('before', 'undersample', 'weighted');
+    const blackMinority = metricShift('before', 'blacken', 'minority');
+    const blackMajority = black ? mean(METHODS.flatMap(m => data.protocol.budgets.map(b => configMetrics(m, b, 'blacken').majority.mean))) : null;
+    const helps = comps.filter(c => c.decision === 'helps');
+    const hurts = comps.filter(c => c.decision === 'hurts');
+    const w = runsFor('unet', 100)[0]?.class_weights;
+
+    html += takeaways([
+        `<strong>At first</strong>, “Other” was ${pct(shares[0])} of the training pixels. A model that never predicts a flood would already score ${pct(t.accuracy)} pixel accuracy and ${pct(t.weighted)} weighted mIoU, so only the minority IoU shows whether the rare classes are learned.`,
+        `<strong>The idea</strong>: keep every flooded pixel (or region) and only r times as much “Other”, with no class weights, the same rule for all three models. r ∈ {${under.ratios.join(', ')}} was chosen on validation: ${esc(ratioText())}.`,
+        `<strong>The result</strong>: ${helps.length} of ${comps.length} configurations clearly improved the minority IoU, ${hurts.length} got clearly worse, and ${comps.length - helps.length - hurts.length} showed no clear change. Majority IoU, mean change over both budgets: ${majorityByMethod('undersample')}.`,
+        black ? `<strong>Blackening</strong> the unneeded classes in the training photos changed the minority IoU by ${points(blackMinority.mean)} on average when scored on real photos, and the majority IoU fell to about ${pct(blackMajority, 0)}: the models learn “not black means flood”, and a real photo has no black, so they call almost every pixel flooded.` : '',
+        `<strong>So</strong>: ${verdictText(comps)}`
+    ], 'The story in one minute');
+
+    html += card('At first: one class drowns out the others', `<p>Every pixel is <em>flooded building</em>, <em>flooded road</em> or <em>Other</em>. In the training images, “Other” is ${pct(shares[0])} of the pixels, flooded buildings ${pct(shares[1])} and flooded roads ${pct(shares[2])}. That imbalance hides in two of the three headline metrics:</p>`
+        + threeMetricTable('before')
+        + `<p class="fn-figure-note">Before, ${esc(testLabel().toLowerCase())}, mean ± SD over seeds.</p>`
+        + `<ul><li><strong>Majority IoU</strong> (“Other”) is high for every model, and close to the score of a model that predicts nothing but “Other” (${pct(t.majority)}).</li>`
+        + `<li><strong>Weighted mIoU</strong> weights each class by its pixel share, so “Other” makes up ${pct(shares[0], 0)} of it. It barely separates the models.</li>`
+        + `<li><strong>Minority IoU</strong> ignores “Other” and is the only one of the three that drops to zero for a model that never finds a flood. That is why it is the primary metric.</li></ul>`
+        + `<p>Reporting all three is still useful: a fix for the imbalance should raise the minority IoU <em>without</em> wrecking the majority IoU. Before handles the imbalance with class weights: every pixel is used, but a flooded pixel counts more in the loss${w ? ` (${[0, 1, 2].map(c => Number(w[c]).toFixed(2)).join(' / ')} for Other / building / road at 100%)` : ''}.</p>`
+        + FN_MATH.equations(['weights']));
+
+    html += card('The idea: train on fewer “Other” pixels', `<p>If nine of every ten flash cards have the same answer, a student learns to give that answer. Class weights make the rare cards count more. Undersampling takes a different route: it removes most of the common cards, so the deck the model learns from is balanced.</p>`
+        + `<div class="fn-idea-body"><div><p class="fn-idea-label">How it works (the same rule for every model)</p><ol>`
+        + `<li>Count the flooded and the “Other” pixels (regions, for the forest) in the budget's training images.</li>`
+        + `<li>Keep every flooded-building and flooded-road pixel.</li>`
+        + `<li>Keep only r “Other” pixels for every flooded one, picked at random with a fixed seed. The U-Net keeps the same pixels in every epoch.</li>`
+        + `<li>Drop the class weights: the balanced data replaces them.</li>`
+        + `<li>Change nothing else: the same photos, augmentation, epochs, forest and CRF.</li></ol>`
+        + FN_MATH.equations(['keep', 'regions', 'ceKept'])
+        + `</div><div class="fn-idea-figures">${underFigure()}</div></div>`
+        + `<div class="fn-table-wrap"><table class="fn-table"><thead><tr><th>Model</th><th>How the rule is applied</th><th>In numbers</th></tr></thead><tbody>`
+        + `<tr><td>${esc(METHOD.unet.short)}</td><td>Dropped “Other” pixels get the ignore label (255) before augmentation, so flips and rotations move the mask with the photo. The photo itself is not changed.</td><td>“Other” pixels kept: ${keepText(25)} at 25%, ${keepText(100)} at 100%</td></tr>`
+        + `<tr><td>${esc(METHOD.rf.short)}</td><td>Every flooded region, plus a seeded sample of r × as many “Other” regions; no class weights.</td><td>Regions (Other / building / road): 25% ${esc(runsFor('rf', 25, 'undersample')[0]?.region_class_counts?.map(num).join(' / ') || 'N/A')}; 100% ${esc(runsFor('rf', 100, 'undersample')[0]?.region_class_counts?.map(num).join(' / ') || 'N/A')}</td></tr>`
+        + `<tr><td>${esc(METHOD.hybrid.short)}</td><td>The same frozen DenseCRF setting, applied to each undersampled U-Net.</td><td>No training of its own</td></tr></tbody></table></div>`);
+
+    html += card('Choosing r on validation', `<p>How much “Other” to keep is a choice, so it was made on the validation images, with the test split still sealed. Too little (r = 1) and the model sees so few background examples that it calls too much of the image flooded; too much and the imbalance comes back.</p>` + ratioTable());
+
+    html += card('Results on the held-out test split', `<p>Each undersampled run is compared with the Before run of the same model, budget and seed.</p>`
+        + `<div class="fn-result-row fn-result-row-3">${METHODS.map(method => `<div class="fn-result-method"><p class="fn-idea-label">${esc(METHOD[method].short)}</p>${[25, 100].map(budget => {
+            const c = comparisonFor(method, budget, 'undersample');
+            return c ? `<div class="fn-result-tile"><span class="fn-result-label">${budget}% labels</span><strong>${pct(mean(c.baseline_scores))} → ${pct(mean(c.variant_scores))}</strong><span>${points(c.mean_difference)} · 95% CI ${interval(c.ci)}</span>${decisionPill(c.decision)}</div>` : '';
+        }).join('')}</div>`).join('')}</div>`
+        + shiftTable('before', 'undersample')
+        + `<p>Majority IoU changed by ${points(maj.min)} to ${points(maj.max)} and weighted mIoU by ${points(wei.min)} to ${points(wei.max)} across the six configurations (mean over both budgets: ${majorityByMethod('undersample')}). ${(() => {
+            const lose = METHODS.filter(m => methodShift(m, 'undersample', 'majority') < -0.01);
+            const keep = METHODS.filter(m => !lose.includes(m));
+            return (lose.length ? `${lose.map(m => METHOD[m].short).join(' and ')} ${lose.length > 1 ? 'lose' : 'loses'} background quality: with less “Other” to learn from, more background pixels are called flooded. ` : '')
+                + (keep.length ? `${keep.map(m => METHOD[m].short).join(' and ')} ${keep.length > 1 ? 'keep' : 'keeps'} ${keep.length > 1 ? 'their' : 'its'} background quality.` : '');
+        })()}</p>`
+        + `<div class="fn-dark-card"><h3>What this means for the project</h3><p>${verdictText(comps)}</p></div>`
+        + `<a href="#results">Every metric, side by side →</a>`);
+
+    if (black) {
+        html += card('What about blackening the unneeded classes?', `<article class="fn-idea dropped"><header><span class="fn-idea-num">Tested idea</span><h3>Paint every “Other” pixel black in the training photos</h3><span class="fn-pill warn">not used</span></header><div class="fn-idea-body"><div>`
+            + `<p class="fn-idea-label">The logic</p><p>FloodNet starts with ten classes; only two matter here. If every pixel of the other eight classes is painted black, the model never sees grass, trees or ordinary roads, and can spend all its effort on floods.</p>`
+            + `<p class="fn-idea-label">How it was tested</p><ol><li>In every training photo, set each pixel whose label is “Other” to black (0, 0, 0). Flooded pixels and padding stay as they are.</li><li>Train all three models on these photos, with the same undersampling ratio as above.</li><li>Score them on the real, unchanged validation and test photos.</li></ol>${FN_MATH.equations(['blacken'])}`
+            + `<p class="fn-idea-label">Why it cannot work as a pipeline</p><ul><li><strong>Blackening needs the answer.</strong> To know which pixels to paint black, you need the ground-truth mask. A new drone photo has no mask, so its pixels cannot be blackened.</li>`
+            + `<li><strong>Blackening only the training photos teaches a shortcut.</strong> In every training photo, anything that is not black is a flood. The model learns “not black = flood”. A real photo has no black pixels, so it sees floods everywhere.</li></ul>`
+            + `</div><div class="fn-idea-figures">${blackenFigure()}</div></div>`
+            + `<p class="fn-idea-label">What happened (scored on real photos)</p>${shiftTable('before', 'blacken')}`
+            + `<p class="fn-idea-lesson">Lesson: do not let the model learn from information it will not have at prediction time. The valid way to stop the model from being swamped by “Other” is to change what it is graded on (the undersampling above), not what it sees.</p></article>`);
+    }
+
+    if (uniform?.comparisons?.length) {
+        html += card('First, Before itself was made fair', `<p>A comparison of three models is only fair if they handle the imbalance the same way. In the first version of Before, the U-Net used capped class weights on every pixel, while the forest used sklearn's uncapped “balanced” weights and a ${num(data.protocol.rf_max_regions)}-region training cap that, at 100% labels, threw away two thirds of the “Other” regions. Before now gives the forest the U-Net's own weights and every region; the U-Net and U-Net + CRF did not change.</p>`
+            + shiftTable('original', 'before', ['rf'])
+            + `<p>The undersampling results above are measured against this uniform Before. The first-version results are kept and remain available as “Before v1” in the Compare view with After.</p>`);
+    }
+
+    html += card('What did not change', `<ul><li>The data: the same audited images, 256 px masks, three target classes, 25% subset and seeds (${data.protocol.train_seeds.join(', ')}).</li>`
+        + `<li>The scoring: every prediction is scored on the same test grid against the same masks.</li>`
+        + `<li>The protocol: the rule, the ratio grid and the decision rule were written down on ${plain(new Date(under.preregistered_at).toLocaleDateString())} before training; r was chosen on validation; the ${num(under.study.tested)} test evaluations of the ${num(under.study.runs)} trained runs were made once, after a freeze.</li></ul>`);
+    return html;
+}
+
+function undersampleCard() {
+    if (!showUnder()) return '';
+    const line = method => {
+        const [a, b] = [25, 100].map(budget => comparisonFor(method, budget, 'undersample'));
+        return `<li><strong>${esc(METHOD[method].name)}</strong>: 25% ${pct(mean(a.baseline_scores))} → ${pct(mean(a.variant_scores))} (${points(a.mean_difference)}, ${esc(a.decision)}); 100% ${pct(mean(b.baseline_scores))} → ${pct(mean(b.variant_scores))} (${points(b.mean_difference)}, ${esc(b.decision)}).</li>`;
+    };
+    return card('Does undersampling help?', `<p class="fn-insight">Keeping every flooded pixel and only r times as much “Other” (no class weights; ${esc(ratioText())}) changed the minority IoU as follows:</p>`
+        + `<ul>${METHODS.map(line).join('')}</ul>`
+        + `<p>Majority IoU, mean change over both budgets: ${majorityByMethod('undersample')}. ${verdictText(under.comparisons)} Blackening the “Other” pixels of the training photos is not a usable alternative: it needs the ground-truth mask, which a new photo does not have (see <a href="#undersample">Undersampling pipeline</a>).</p>`);
+}
+
+
 const PAGES = {
     overview, dataset: datasetPage, preprocessing: () => FN_PREP.page(), methodology, walkthrough: () => FN_WALKTHROUGH.page(),
-    results: resultsPage, changes: changesPage, imbalance: () => FN_IMBALANCE.page(), improve: () => FN_IMPROVE.page(), training: trainingPage,
+    results: resultsPage, undersample: undersamplePage, changes: changesPage, imbalance: () => FN_IMBALANCE.page(), improve: () => FN_IMPROVE.page(), training: trainingPage,
     explorer: explorerPage, interpretation, reproducibility
 };
 
@@ -1441,32 +1788,51 @@ function updateStatus() {
     const status = $('#fn-export-status');
     if (!status || !data) return;
     status.textContent = data.status === 'complete'
-        ? `${data.runs.length} / ${data.protocol.expected_runs} evaluations complete${showAfter() ? ` · ${after.runs.length} improved` : ''}`
+        ? `${data.runs.length} / ${data.protocol.expected_runs} evaluations complete${showAfter() ? ` · ${after.runs.length} improved` : showUnder() ? ` · ${under.runs.length} undersampled` : ''}`
         : 'Experiment in progress';
     status.parentElement.classList.toggle('complete', data.status === 'complete');
 }
 
+function viewAvailable(view) {
+    return view === 'before' || (view === 'compare' ? !!(under || after) : !!bundle(view));
+}
+
 function syncViewButtons() {
+    if (!viewAvailable(state.view)) state.view = 'before';
+    if (!bundle(state.compareWith)) state.compareWith = under ? 'undersample' : 'after';
     $$('[data-view]').forEach(button => {
         const on = button.dataset.view === state.view;
         button.classList.toggle('on', on);
         button.setAttribute('aria-pressed', String(on));
-        if (button.dataset.view !== 'before') button.disabled = !after;
+        button.disabled = !viewAvailable(button.dataset.view);
+    });
+    const withPanel = $('#fn-compare-with');
+    if (withPanel) withPanel.hidden = state.view !== 'compare';
+    $$('[data-compare-with]').forEach(button => {
+        const on = button.dataset.compareWith === state.compareWith;
+        button.classList.toggle('on', on);
+        button.setAttribute('aria-pressed', String(on));
+        button.disabled = !bundle(button.dataset.compareWith);
     });
     const note = $('#fn-view-note');
     if (note) {
-        note.innerHTML = !after ? 'The improvement-study export is not available; showing the original models.'
-            : state.view === 'before' ? 'Before: the original models, exactly as in the proposed methodology (three classes, 256 px).'
-                : `${esc({ after: 'After: the improvement study\'s pre-registered combined models.', compare: 'Compare: originals and improved models side by side.' }[state.view])} <a href="#changes">What does “After” change? →</a>`;
+        const [base, other] = pairSources();
+        note.innerHTML = {
+            before: `${esc(beforeNote())} Three classes, 256 px.`,
+            undersample: 'Undersampling: no class weights; every flooded pixel kept, “Other” thinned to a ratio chosen on validation. <a href="#undersample">How it works →</a>',
+            after: 'After: the improvement study\'s pre-registered combined models. <a href="#changes">What does “After” change? →</a>',
+            compare: other === 'after' ? `Compare: ${STATE_NAME[base]} (the improvement study's baseline) and After, side by side. <a href="#changes">What changed →</a>`
+                : 'Compare: Before and the undersampling pipeline, side by side. <a href="#undersample">How it works →</a>'
+        }[state.view];
     }
     const copy = $('#fn-sidebar-copy');
-    if (copy) copy.textContent = `Three approaches. Two data budgets. Three seeds. One shared protocol${showAfter() ? ', then one pre-registered round of improvements' : ''}.`;
+    if (copy) copy.textContent = `Three approaches. Two data budgets. Three seeds. One shared protocol${showAfter() ? ', then one pre-registered round of improvements' : showUnder() ? ', then one pre-registered undersampling rule' : ''}.`;
     renderNav();
     updateStatus();
 }
 
 function render(scrollTop = true) {
-    if (AFTER_ONLY.has(currentRoute()) && !showAfter()) history.replaceState(null, '', '#overview');
+    if (!routeShown(currentRoute())) history.replaceState(null, '', '#overview');
     const route = currentRoute();
     const page = PAGES[route] || overview;
     chartRenderers.clear();
@@ -1551,13 +1917,18 @@ function downloadChart(button) {
 }
 
 function saveView() {
-    try { localStorage.setItem('fn-view', state.view); } catch { }
+    try {
+        localStorage.setItem('fn-view', state.view);
+        localStorage.setItem('fn-compare-with', state.compareWith);
+    } catch { }
 }
 
 function loadView() {
     try {
         const saved = localStorage.getItem('fn-view');
-        if (['before', 'after', 'compare'].includes(saved)) state.view = saved;
+        const against = localStorage.getItem('fn-compare-with');
+        if (Object.keys(VIEW_NAME).includes(saved)) state.view = saved;
+        if (['undersample', 'after'].includes(against)) state.compareWith = against;
     } catch { }
 }
 
@@ -1574,10 +1945,11 @@ document.addEventListener('click', event => {
         toggle.setAttribute('aria-expanded', String(open));
         return;
     }
-    const view = target.closest('[data-view]');
+    const view = target.closest('[data-view], [data-compare-with]');
     if (view) {
         if (view.disabled) return;
-        state.view = view.dataset.view;
+        if (view.dataset.view) state.view = view.dataset.view;
+        else state.compareWith = view.dataset.compareWith;
         saveView();
         syncViewButtons();
         render(false);
@@ -1689,18 +2061,18 @@ window.addEventListener('hashchange', () => {
     try {
         const hires = FN_VIEWER.loadHires();
         const response = await fetch('data/results.json', { cache: 'no-store' });
-        const afterResponse = await fetch('data/after.json', { cache: 'no-store' }).catch(() => null);
+        const optional = name => fetch(`data/${name}.json`, { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).catch(() => null);
+        const [afterBundle, uniformBundle, underBundle] = await Promise.all(['after', 'uniform', 'undersample'].map(optional));
         await hires;
         if (!response.ok) throw new Error(`Results export returned HTTP ${response.status}`);
         data = await response.json();
         if (data.schema_version !== 3 || !Array.isArray(data.runs) || !Array.isArray(data.samples)) {
             throw new Error('Unsupported or invalid results export');
         }
-        if (afterResponse?.ok) {
-            const candidate = await afterResponse.json();
-            if (candidate.schema_version === 1 && candidate.status === 'complete' && Array.isArray(candidate.runs)) after = candidate;
-        }
-        if (!after) state.view = 'before';
+        const valid = candidate => candidate?.schema_version === 1 && candidate.status === 'complete' && Array.isArray(candidate.runs) ? candidate : null;
+        after = valid(afterBundle);
+        uniform = valid(uniformBundle);
+        under = uniform ? valid(underBundle) : null;
         state.metricRun = data.runs[data.runs.length - 1]?.id ?? null;
         syncViewButtons();
         render();

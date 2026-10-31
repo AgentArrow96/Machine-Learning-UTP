@@ -94,7 +94,7 @@ const FN_MATH = {
         recall: ['Recall', String.raw`\mathrm{Recall}_c=\frac{TP_c}{TP_c+FN_c}`, 'Share of annotated target pixels that were found.'],
         precision: ['Precision', String.raw`\mathrm{Precision}_c=\frac{TP_c}{TP_c+FP_c}`, 'Share of predicted target pixels that are correct (1 − false-alarm share).'],
         norm: ['Input normalisation', String.raw`\begin{aligned}\hat x_{k}&=\frac{x_{k}/255-\mu_k}{\sigma_k}\\ \mu&=(0.485,\,0.456,\,0.406),\quad \sigma=(0.229,\,0.224,\,0.225)\end{aligned}`, 'Per RGB channel k, with the ImageNet statistics the pretrained encoder expects.'],
-        weights: ['Class weights', String.raw`w_c=\operatorname{clip}\!\left(\frac{N}{3\,n_c},\,0.25,\,4\right)`, 'Inverse pixel frequency in the budget\'s training images (n_c pixels of class c, N in total), clipped.'],
+        weights: ['Class weights', String.raw`w_c=\operatorname{clip}\!\left(\frac{1/n_c}{\tfrac13\sum_{k}1/n_k},\,0.25,\,4\right)`, 'Inverse pixel frequency in the budget\'s training images (n_c pixels of class c), divided by its mean over the three classes, then clipped.'],
         ce: ['Weighted cross-entropy', String.raw`\mathcal L_{\text{CE}}=-\frac{\sum_i w_{y_i}\log p_{i,y_i}}{\sum_i w_{y_i}}`, 'Over all non-padding pixels i with label y_i and softmax probability p.'],
         aux: ['10-class auxiliary loss', String.raw`\mathcal L=\mathcal L_{\text{CE},w}^{(3)}+0.5\,\mathcal L_{\text{CE}}^{(10)}`, 'Improvement study: a second head learns the 10 original classes; only the 3-class head predicts.'],
         cosine: ['Cosine learning rate', String.raw`\begin{aligned}\eta_t&=\eta_{\min}+\tfrac12(\eta_0-\eta_{\min})\left(1+\cos\frac{\pi t}{T-1}\right)\\ \eta_0&=10^{-4},\quad \eta_{\min}=10^{-6},\quad T=60\end{aligned}`, 'Improvement study (training recipe): epoch t of at most T.'],
@@ -103,12 +103,17 @@ const FN_MATH = {
         area: ['512 → 256 px scoring', String.raw`\tilde p_{o}=\sum_{i}\frac{|\,o\cap i\,|}{|\,o\,|}\,p_i`, 'Each 256-px output pixel o averages the 512-px pixels i it covers (a 2×2 mean when the content is exactly twice as large).'],
         crf: ['DenseCRF energy', String.raw`\begin{aligned}E(\mathbf y)&=\sum_i -\log p_i(y_i)+\sum_{i<j}\mu(y_i,y_j)\,k(i,j)\\ k(i,j)&=w_1\exp\!\Big(-\tfrac{\lVert s_i-s_j\rVert^2}{2\theta_\gamma^2}\Big)+w_2\exp\!\Big(-\tfrac{\lVert s_i-s_j\rVert^2}{2\theta_\alpha^2}-\tfrac{\lVert c_i-c_j\rVert^2}{2\theta_\beta^2}\Big)\end{aligned}`, 'Unary term from the U-Net probabilities; a spatial kernel (θγ = sxy, w1) and a colour-aware kernel (θα = sxy, θβ = srgb, w2) pull nearby, similar pixels to one label.'],
         budget: ['Budget effect', String.raw`\Delta_{\text{budget}}=\frac13\sum_{s}\left(\mathrm{mIoU}^{100\%}_{\text{flood},s}-\mathrm{mIoU}^{25\%}_{\text{flood},s}\right)`, 'Seed-matched: the same seed s is trained at both budgets.'],
+        keep: ['Undersampling: U-Net keep probability', String.raw`p_{\text{keep}}=\min\!\left(1,\ r\,\frac{n_{\text{building}}+n_{\text{road}}}{n_{\text{Other}}}\right)`, 'Pixel counts of the budget\'s training images. Each "Other" pixel keeps its label with this probability (one fixed, seeded draw per image); the rest are ignored by the loss.'],
+        regions: ['Undersampling: forest regions', String.raw`R'_{\text{Other}}=\min\!\left(R_{\text{Other}},\ \operatorname{round}\!\left(r\,R_{\text{flood}}\right)\right)`, 'Every flooded region is kept; this many "Other" regions are drawn at random (fixed seed).'],
+        ceKept: ['Unweighted loss on the kept pixels', String.raw`\mathcal L=-\frac{1}{|K|}\sum_{i\in K}\log p_{i,y_i}`, 'K: the non-padding pixels whose label was kept. No class weights.'],
+        blacken: ['Blackening (tested, not used)', String.raw`\tilde x_i=\begin{cases}(0,0,0)&\text{if } y_i=\text{Other}\\ x_i&\text{otherwise}\end{cases}`, 'Training photos only. It needs the true label y_i of every pixel, which a new photo does not have.'],
+        changeUnder: ['Before → undersampling change', String.raw`\Delta=\frac13\sum_{s\in\{42,43,44\}}\left(\mathrm{mIoU}^{\text{under}}_{\text{flood},s}-\mathrm{mIoU}^{\text{before}}_{\text{flood},s}\right)`, 'Seed-matched: each undersampled run is compared with the Before run of the same budget and seed.'],
         change: ['Before → after change', String.raw`\Delta=\frac13\sum_{s\in\{42,43,44\}}\left(\mathrm{mIoU}^{\text{after}}_{\text{flood},s}-\mathrm{mIoU}^{\text{before}}_{\text{flood},s}\right)`, 'Seed-matched: each improved run is compared with the original run of the same budget and seed.'],
         bootstrap: ['95% bootstrap interval', String.raw`\mathrm{CI}_{95}=\left[\hat\Delta^{*}_{(2.5\%)},\ \hat\Delta^{*}_{(97.5\%)}\right],\quad B=5000`, 'Paired image bootstrap: the 448 test images are resampled with replacement and the seed-mean Δ recomputed.'],
         decision: ['Pre-registered decision', String.raw`\begin{aligned}\text{helps}&\iff \mathrm{CI}_{95}>0\ \wedge\ \Delta_s>0\ \forall s\\ \text{hurts}&\iff \mathrm{CI}_{95}<0\ \wedge\ \Delta_s<0\ \forall s\end{aligned}`, 'Otherwise "no clear effect".']
     },
 
-    WIDE: new Set(['norm', 'crf', 'cosine']),
+    WIDE: new Set(['norm', 'crf', 'cosine', 'keep', 'regions']),
 
     equations(keys) {
         return `<div class="fn-equations">${keys.map(key => {

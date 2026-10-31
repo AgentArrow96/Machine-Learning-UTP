@@ -76,7 +76,7 @@ const FN_WALKTHROUGH = {
     verification(e) {
         const b = e.budgets[String(state.budget)];
         const rows = [['rf', b.rf], ['unet', b.unet], ['hybrid', b.hybrid]].map(([method, part]) => `<li><span class="fn-pill ${method}">${esc(METHOD[method].short)}</span> `
-            + `${part.check.matches_frozen_prediction ? '✓' : '✗'} final mask equals the frozen test prediction of <code>${esc(part.run_id)}</code>: `
+            + `${part.check.matches_frozen_prediction ? '✓' : '✗'} final mask equals the frozen test prediction of <code>${esc(part.run_id.split('/').pop())}</code>${part.run_id.includes('/') ? ' (Before, retrained forest)' : ''}: `
             + `${num(part.check.pixels - part.check.differing)} of ${num(part.check.pixels)} pixels identical · flooded IoU on this image ${pct(part.scores.flooded_miou)}</li>`).join('');
         return card('Is this what the models really did?', `<ul class="fn-walk-checks">${rows}</ul><p class="fn-figure-note">Checked when the walkthrough was exported: it reloads each frozen checkpoint (hash-verified), reruns the steps above and fails unless the result matches the saved test predictions pixel for pixel. The preparation step was also rerun from the raw photo and annotation and reproduced the cached 256-px arrays exactly.</p>`);
     },
