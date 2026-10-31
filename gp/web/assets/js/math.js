@@ -86,7 +86,11 @@ const FN_MATH = {
     EQ: {
         iou: ['IoU', String.raw`\mathrm{IoU}_c=\frac{TP_c}{TP_c+FP_c+FN_c}`, 'Overlap of prediction and truth for class c, relative to their union; pooled pixel counts over the test images.'],
         fmiou: ['Flooded mIoU (primary metric)', String.raw`\mathrm{mIoU}_{\text{flood}}=\tfrac12\left(\mathrm{IoU}_{\text{building}}+\mathrm{IoU}_{\text{road}}\right)`, 'Mean IoU of the two target classes; "Other" is excluded.'],
-        dice: ['Dice', String.raw`\mathrm{Dice}_c=\frac{2\,TP_c}{2\,TP_c+FP_c+FN_c}`, 'Overlap relative to the combined mask size.'],
+        majority: ['Majority IoU (Other)', String.raw`\mathrm{IoU}_{\text{Other}}=\frac{TP_0}{TP_0+FP_0+FN_0}`, 'IoU of the background class "Other".'],
+        miou3: ['3-class mIoU', String.raw`\mathrm{mIoU}_3=\tfrac13\left(\mathrm{IoU}_{\text{Other}}+\mathrm{IoU}_{\text{building}}+\mathrm{IoU}_{\text{road}}\right)`, 'Mean IoU over all three classes.'],
+        fwiou: ['Weighted mIoU', String.raw`\mathrm{wIoU}=\sum_{c}\frac{n_c}{N}\,\mathrm{IoU}_c`, 'Each class IoU weighted by its share of true pixels (n_c of N).'],
+        acc: ['Pixel accuracy', String.raw`\mathrm{Acc}=\frac{\sum_c TP_c}{N}`, 'Share of all scored pixels labelled correctly.'],
+        dice: ['Dice',String.raw`\mathrm{Dice}_c=\frac{2\,TP_c}{2\,TP_c+FP_c+FN_c}`, 'Overlap relative to the combined mask size.'],
         recall: ['Recall', String.raw`\mathrm{Recall}_c=\frac{TP_c}{TP_c+FN_c}`, 'Share of annotated target pixels that were found.'],
         precision: ['Precision', String.raw`\mathrm{Precision}_c=\frac{TP_c}{TP_c+FP_c}`, 'Share of predicted target pixels that are correct (1 − false-alarm share).'],
         norm: ['Input normalisation', String.raw`\begin{aligned}\hat x_{k}&=\frac{x_{k}/255-\mu_k}{\sigma_k}\\ \mu&=(0.485,\,0.456,\,0.406),\quad \sigma=(0.229,\,0.224,\,0.225)\end{aligned}`, 'Per RGB channel k, with the ImageNet statistics the pretrained encoder expects.'],

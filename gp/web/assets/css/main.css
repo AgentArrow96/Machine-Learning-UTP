@@ -3134,3 +3134,30 @@ pre.fn-code {
     display: grid;
     gap: 14px;
 }
+
+/* Every metric, every configuration */
+.fn-metrics-table th small {
+    display: block;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--fn-muted);
+}
+
+.fn-metrics-table td {
+    white-space: nowrap;
+}
+
+.fn-reference-row td {
+    font-style: italic;
+    color: var(--fn-muted);
+    background: #f8fafc;
+}
+
+.fn-guide-table td:nth-child(2) {
+    min-width: 220px;
+}
+
+.fn-metrics-table.fn-class-table td {
+    white-space: normal;
+}
