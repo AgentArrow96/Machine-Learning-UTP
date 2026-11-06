@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "study": "Class-imbalance remedies on the frozen FloodNet protocol (added after the original test results; validation-only choices; own freeze before test)",
+  "seed": 42,
+  "budgets": [25, 100],
+  "train_seeds": [42, 43, 44],
+  "synthetic_fraction": 0.5,
+  "variants": {
+    "oversample": {"kind": "images", "methods": ["rf", "unet", "hybrid"], "source": "duplicates of target-containing budget images, drawn with replacement"},
+    "chessmix": {"kind": "images", "methods": ["rf", "unet", "hybrid"], "source": "ChessMix mosaics of budget-image patches"},
+    "rgan": {"kind": "images", "methods": ["rf", "unet", "hybrid"], "source": "R-GAN renderings of edited budget layouts"},
+    "oasis": {"kind": "images", "methods": ["rf", "unet", "hybrid"], "source": "OASIS renderings of the same layouts"},
+    "spade": {"kind": "images", "methods": ["rf", "unet", "hybrid"], "source": "SPADE renderings of the same layouts"},
+    "dice": {"kind": "loss", "methods": ["unet", "hybrid"], "loss": "weighted cross-entropy + soft Dice over the two target classes (equal weight)"},
+    "smote": {"kind": "rows", "methods": ["rf"], "k": 5},
+    "rgan_tabular": {"kind": "rows", "methods": ["rf"]}
+  },
+  "rows_match_variant": "rgan",
+  "layouts": {"base": "random target-containing budget mask, flipped left-right/up-down/180 degrees (geometry kept)",
+              "paste_min": 1, "paste_max": 2, "min_component_pixels": 64, "paste_classes": [1, 3]},
+  "chessmix": {"grid": 4, "patch": 64, "candidates_per_patch": 8, "target_weight_epsilon": 1},
+  "image_gan": {
+    "batch_size": 8,
+    "iterations": {"25": 10000, "100": 20000},
+    "checkpoint_every": 2000,
+    "lr_generator": 0.0002, "lr_discriminator": 0.0002, "betas": [0.5, 0.999],
+    "precision": "fp32 with TF32 matmul (no bf16 adversarial losses)",
+    "diffaugment": ["flip", "translation 1/8", "colour (image only)"],
+    "selection": "lowest KID (ResNet-18 avgpool features, polynomial kernel) between real validation images and images generated from validation layouts",
+    "rgan": {"ngf": 48, "ndf": 64, "lambda_l1": 10, "lambda_similarity": 2, "lambda_feature_matching": 5,
+             "adversarial": "relativistic average (BCE)", "generator_norm": "spectral", "discriminator_activation": "CELU"},
+    "oasis": {"nf": 48, "ndf": 32, "noise_channels": 64, "lambda_labelmix": 5, "adversarial": "class-balanced (N+1)-class segmentation discriminator"},
+    "spade": {"nf": 48, "ndf": 64, "lambda_feature_matching": 10, "lambda_perceptual": 10, "adversarial": "hinge, 2-scale PatchGAN",
+              "perceptual_backbone": "ImageNet ResNet-18 (offline cache) instead of VGG-19"}
+  },
+  "tabular_gan": {"iterations": 6000, "batch_size": 256, "noise": 32, "hidden": 128, "checkpoint_every": 500,
+                  "lambda_similarity": 1, "selection": "lowest RBF-MMD against validation target-region rows"},
+  "quality": {"kid_subsets": 20, "kid_subset_size": 100, "memorisation_percentile": 99},
+  "statistics": {"bootstrap": 5000, "bootstrap_seed": 2026, "ci": 0.95},
+  "decision_rule": "helps: 95% CI of the seed-mean pooled flooded-mIoU difference vs baseline excludes 0 above, and all 3 seed-matched differences are positive; hurts: CI excludes 0 below and all 3 negative; otherwise no clear effect",
+  "unchanged": ["class weights from the real budget images", "architecture and optimiser", "epochs, patience and validation checkpointing", "the frozen DenseCRF setting (not re-tuned)", "the 448-image official test split, scored once after the freeze"]
+}

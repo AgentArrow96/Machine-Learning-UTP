@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "subset_seed": 42,
+  "train_seeds": [42, 43, 44],
+  "size": 256,
+  "ignore_index": 255,
+  "expected_counts": {"train": 1445, "val": 450, "test": 448},
+  "preprocess_version": 1,
+  "preprocess_workers": 4,
+  "slic": {"n_segments": 250, "compactness": 10, "max_num_iter": 10},
+  "rf": {"n_estimators": 150, "max_depth": 20, "class_weight": "balanced", "max_regions": 100000, "n_jobs": 8,
+         "region_sampling": "keep_targets"},
+  "unet": {
+    "encoder": "resnet18", "encoder_weights": "imagenet",
+    "decoder_channels": [128, 64, 32, 16, 8],
+    "batch_size": 4, "lr": 0.0001, "weight_decay": 0.0001,
+    "max_epochs": 30, "patience": 6, "num_workers": 2,
+    "weight_clip": [0.25, 4.0], "brightness_contrast": 0.1
+  },
+  "overlap": {
+    "frame_window": 5, "embedding_neighbours": 5, "long_side": 1024, "keypoints": 2000,
+    "min_inliers": 20, "min_inlier_ratio": 0.25, "min_overlap": 0.1, "residual_threshold": 4.0,
+    "max_trials": 2000, "workers": 8
+  },
+  "timing": {"warmup": 10, "images": 50}
+}
