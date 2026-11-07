@@ -2396,7 +2396,7 @@ pre.fn-code {
     background: var(--fn-gold);
 }
 
-/* Improvements page */
+/* Paired charts */
 .fn-chart-pair {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2418,7 +2418,7 @@ pre.fn-code {
     }
 }
 
-/* ---------- Before / After / Compare (v6) ---------- */
+/* ---------- View and mode controls ---------- */
 
 .fn-view-panel .fn-nav-label {
     margin-top: 4px;
@@ -2499,11 +2499,6 @@ pre.fn-code {
     color: #334155;
 }
 
-.fn-state.after {
-    background: #cffafe;
-    color: #0e7490;
-}
-
 /* "On this page": card headings as a scrollable strip under the page header. */
 .fn-toc {
     display: flex;
@@ -2581,7 +2576,7 @@ pre.fn-code {
     font-size: 14px;
 }
 
-/* Explorer, Compare: RGB, truth, then each method's before | after side by side (4 per row). */
+/* Explorer grid. */
 .fn-comparison.fn-comparison-compare {
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -2716,7 +2711,7 @@ pre.fn-code {
     position: relative;
 }
 
-/* What "After" changed */
+/* Result tiles */
 .fn-view-note a {
     color: #67e8f9;
     font-weight: 700;
@@ -3162,7 +3157,7 @@ pre.fn-code {
     white-space: normal;
 }
 
-/* Before / Undersampling / After / Compare (v7) */
+/* Mode switch and change tables */
 .fn-view-seg {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3174,27 +3169,6 @@ pre.fn-code {
 
 .fn-compare-with[hidden] {
     display: none;
-}
-
-.fn-state.original {
-    background: #f1f5f9;
-    color: #475569;
-}
-
-.fn-state.undersample {
-    background: #ede9fe;
-    color: #6d28d9;
-}
-
-.fn-state.blacken {
-    background: #1e293b;
-    color: #f8fafc;
-}
-
-.fn-view-chip.undersample {
-    background: #f5f3ff;
-    color: #5b21b6;
-    border-color: #ddd6fe;
 }
 
 .fn-result-row.fn-result-row-3 {
@@ -3273,4 +3247,52 @@ pre.fn-code {
 
 .fn-ratio-table td small {
     font-weight: 500;
+}
+
+/* Presentation mode */
+.fn-pres-figure {
+    margin: 14px 0;
+}
+
+.fn-pres-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.fn-pres-figure figcaption {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--fn-muted);
+}
+
+.fn-pres-figure.fn-pres-narrow {
+    max-width: 640px;
+}
+
+.fn-pres-pager {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 22px 0 8px;
+}
+
+.fn-pres-link {
+    padding: 10px 16px;
+    border: 1px solid var(--fn-line);
+    border-radius: 10px;
+    background: #fff;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--fn-ink);
+}
+
+.fn-pres-link:hover {
+    border-color: var(--fn-accent);
+    color: var(--fn-accent);
+}
+
+.fn-pres-link.next {
+    margin-left: auto;
 }

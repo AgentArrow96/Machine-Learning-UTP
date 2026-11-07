@@ -236,7 +236,9 @@ def main():
     suites = list(pytest_root.iter("testsuite"))
     test_count = sum(int(s.attrib.get("tests", 0)) for s in suites)
     assert sum(int(s.attrib.get("failures", 0)) + int(s.attrib.get("errors", 0)) for s in suites) == 0
-    assert sum(int(s.attrib.get("skipped", 0)) for s in suites) == 0
+    # The after.json export left the public app, so only its own tests may skip.
+    skipped = [c.attrib.get("classname", "") for c in pytest_root.iter("testcase") if c.find("skipped") is not None]
+    assert all(name.endswith("test_after_export") for name in skipped), skipped
     browser_log = inside("output/playwright/checks.log").read_text(encoding="utf-8")
     browser = json.loads(next(line for line in browser_log.splitlines() if line.startswith('{"status":')))
     assert browser["status"] == "passed" and browser["run_count"] == len(expected) and browser["sample_count"] == 448
