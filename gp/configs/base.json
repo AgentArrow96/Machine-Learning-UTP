@@ -8,7 +8,7 @@
   "preprocess_version": 1,
   "preprocess_workers": 4,
   "slic": {"n_segments": 250, "compactness": 10, "max_num_iter": 10},
-  "rf": {"n_estimators": 150, "max_depth": 20, "class_weight": "balanced", "max_regions": 100000, "n_jobs": 8,
+  "rf": {"n_estimators": 150, "max_depth": 20, "class_weight": "pixel_clipped", "max_regions": 1000000000, "n_jobs": 8,
          "region_sampling": "keep_targets"},
   "unet": {
     "encoder": "resnet18", "encoder_weights": "imagenet",

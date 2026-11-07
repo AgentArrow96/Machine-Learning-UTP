@@ -4,8 +4,7 @@ const { esc, pct } = FN_CHARTS;
 
 const METHOD = {
     rf: { name: 'SLIC + Random Forest', short: 'SLIC + RF', colour: '#059669', kind: 'Traditional · CPU' },
-    unet: { name: 'ResNet-18 U-Net', short: 'U-Net', colour: '#4f46e5', kind: 'Deep learning · CUDA' },
-    hybrid: { name: 'U-Net + DenseCRF', short: 'U-Net + CRF', colour: '#c2410c', kind: 'Hybrid · GPU + CPU' }
+    unet: { name: 'ResNet-18 U-Net', short: 'U-Net', colour: '#4f46e5', kind: 'Deep learning · CUDA' }
 };
 const METHODS = Object.keys(METHOD);
 const SEED_COLOURS = ['#0891b2', '#d97706', '#7c3aed', '#e11d48'];
@@ -249,7 +248,7 @@ function overviewTakeaways() {
         best ? `Best model at 100% labels: <strong>${esc(METHOD[best.method].name)}</strong>, ${meanSd(best.full.flooded_miou)} flooded mIoU.` : '',
         unet != null ? `Four times the labels change the U-Net by ${points(unet)} on average.` : '',
         `SLIC + RF stays far behind (about ${pct(summaryFor('rf', 100)?.full.flooded_miou.mean, 0)}): colour and texture alone confuse floodwater with flooded roads.`,
-        'All three models handle the class imbalance the same way: the same capped class weights and all of the training data.'
+        'Both models handle the class imbalance the same way: the same capped class weights and all of the training data.'
     ]);
 }
 
@@ -261,13 +260,13 @@ function overview() {
     const testOverlap = overlap ? `${num(overlap.summary.test.overlapping_train)} / ${num(overlap.summary.test.images)}` : '—';
     const hero = `<div class="fn-hero"><div class="fn-hero-copy"><div class="fn-tag">FLOODNET · A COMPARATIVE STUDY</div>`
         + `<h1>Reading the flood.<br><em>One pixel at a time.</em></h1>`
-        + `<p>How well can traditional machine learning, a pretrained U-Net and a CRF-refined U-Net find flooded buildings and roads in post-hurricane aerial images, with all the labels or only a quarter of them?</p>`
+        + `<p>How well can traditional machine learning and a pretrained U-Net find flooded buildings and roads in post-hurricane aerial images, with all the labels or only a quarter of them?</p>`
         + `<div class="fn-actions"><a class="fn-primary-btn" href="#results">Explore the findings →</a><a class="fn-secondary-btn" href="#explorer">Open the prediction explorer</a></div></div>`
         + `<div class="fn-hero-visual">${sample ? zoomable(`<img src="${esc(sample.rgb)}" alt="Held-out FloodNet aerial image ${esc(sample.image_id)}">`, `held-out image ${sample.image_id}`, { title: `Held-out test image ${sample.image_id}`, hires: sample.id, caption: 'Official test split' }) + `<span class="fn-hero-stamp" data-plain>HELD-OUT IMAGE ${esc(sample.image_id)}</span>` : ''}</div></div>`;
     let tiles;
     tiles = metricCards([
             { value: num(total), label: 'Audited image–mask pairs', note: 'Official train / validation / test' },
-            { value: `${num(data.protocol.trained_runs)} + ${num(data.protocol.hybrid_runs)}`, label: 'Trained models + CRF-refined runs', note: `2 trained methods × 2 budgets × ${data.protocol.train_seeds.length} seeds; the hybrid adds no training` },
+            { value: num(data.protocol.trained_runs), label: 'Trained models', note: `2 methods × 2 budgets × ${data.protocol.train_seeds.length} seeds` },
             { value: best ? meanSd(best.full.flooded_miou) : '—', label: 'Best flooded-class mIoU', note: best ? `${METHOD[best.method].short} · ${best.budget}% · mean ± SD` : 'Awaiting evaluation' },
             { value: testOverlap, label: 'Test images overlapping a train frame', note: 'Verified by keypoint matching' }
         ]);
@@ -369,11 +368,11 @@ function rfWeights() {
 }
 
 function methodology() {
-    let html = header('methodology', 'Three approaches. Shared rules.', `The study compares practical segmentation pipelines under matched image budgets and identical evaluation.`);
+    let html = header('methodology', 'Two approaches. Shared rules.', `The study compares practical segmentation pipelines under matched image budgets and identical evaluation.`);
     html += takeaways([
         `Every method sees the same images, resolution (256×256), budgets (25% / 100%) and seeds (${data.protocol.train_seeds.join(', ')}); only the method changes.`,
         `The primary score is ${FN_MATH.inline('fmiou')}, from pooled pixel counts.`,
-        'The class imbalance is handled the same way for all three models: the same capped inverse-frequency class weights, and all of the training data.',
+        'The class imbalance is handled the same way for both models: the same capped inverse-frequency class weights, and all of the training data.',
     ]);
     html += card('The shared preparation path', `<div class="fn-flow"><div>Audit originals</div><span>→</span><div>Remap labels</div><span>→</span><div>Resize + pad</div><span>→</span><div>Cache once</div><span>→</span><div>25% / 100%</div></div>`
         + `<p>Aspect ratio is preserved inside a 256×256 frame. Masks use nearest-neighbour resizing, and padded pixels are ignored in training and scoring. One stratified 25% subset (seed ${data.protocol.subset_seed}) is shared by every method and seed. Validation and test sets never change.</p>`);
@@ -385,7 +384,7 @@ function methodology() {
                 + `<dt>Class weights</dt><dd>The U-Net's capped inverse-frequency weights: ${esc(rfWeights())}<br><small class="fn-muted">Other / building / road</small></dd>`
                 + `<dt>Training data</dt><dd>Every training region, none discarded</dd>`)
         + `<dt>Regions used</dt><dd>25%: ${regionCounts(25)}<br>100%: ${regionCounts(100)}<br><small class="fn-muted">Other / building / road</small></dd></dl>`
-        + (`<p class="fn-small fn-muted">First version (kept for reference): sklearn “balanced” weights and a ${num(data.protocol.rf_max_regions)}-region cap that dropped two thirds of the “Other” regions at 100%. It was changed so that all three models handle the imbalance the same way. <a href="#results">Both versions compared →</a></p>`)
+        + (`<p class="fn-small fn-muted">First version (kept for reference): sklearn “balanced” weights and a ${num(data.protocol.rf_max_regions)}-region cap that dropped two thirds of the “Other” regions at 100%. It was changed so that both models handle the imbalance the same way. <a href="#results">Both versions compared →</a></p>`)
         + `</section>`;
     const unet = `<section class="fn-card fn-method-card unet"><span class="fn-pill unet">Deep learning · CUDA</span><h2 style="margin-top:12px">Lightweight U-Net</h2>`
         + `<p>A pretrained ResNet-18 encoder extracts features. A decoder with skip connections restores spatial detail and outputs three scores per pixel.</p>`
@@ -394,22 +393,11 @@ function methodology() {
         + `<dt>Loss</dt><dd>Class-weighted cross-entropy</dd><dt>Optimiser</dt><dd>AdamW · LR 1e-4 · WD 1e-4 · batch 4</dd>`
         + `<dt>Selection</dt><dd>Best validation flooded mIoU, patience 6, up to 30 epochs</dd></dl>`
         + `<p class="fn-small">BF16 mixed precision on the GPU. Training stops with an error instead of falling back to the CPU.</p>` + `</section>`;
-    const crf = data.hybrid?.selected;
-    const hybrid = `<section class="fn-card fn-method-card hybrid"><span class="fn-pill hybrid">Hybrid · GPU + CPU</span><h2 style="margin-top:12px">U-Net + DenseCRF</h2>`
-        + `<p>No new network is trained. Each saved U-Net's class probabilities are refined by a fully connected conditional random field, which encourages pixels that are close together and similar in colour to share a label.</p>`
-        + `<div class="fn-method-path"><span>U-Net probabilities</span>→<span>DenseCRF</span>→<span>Refined labels</span></div>`
-        + `<dl class="fn-definition-list"><dt>Base model</dt><dd>The same U-Net checkpoint as each U-Net run</dd>`
-        + `<dt>Inference</dt><dd>${crf ? `${crf.iterations} mean-field iterations` : 'N/A'}</dd>`
-        + `<dt>Spatial kernel</dt><dd>${crf ? `sxy ${crf.gaussian.sxy} · weight ${crf.gaussian.compat}` : 'N/A'}</dd>`
-        + `<dt>Appearance kernel</dt><dd>${crf ? `sxy ${crf.bilateral.sxy} · srgb ${crf.bilateral.srgb} · weight ${crf.bilateral.compat}` : 'N/A'}</dd>`
-        + `<dt>Chosen on</dt><dd>Validation only: ${data.hybrid ? data.hybrid.grid.length : 'N/A'} settings, one shared by every budget and seed</dd></dl>`
-        + `</section>`;
-    html += `<div class="fn-grid fn-three-col">${rf}${unet}${hybrid}</div>`;
+    html += `<div class="fn-grid fn-two-col">${rf}${unet}</div>`;
     html += `<div class="fn-callout">Want to see these steps on a real test image? <a href="#walkthrough">Open the step-by-step walkthrough →</a> It replays each model on six representative scenes, and every final mask it shows is checked against the frozen test prediction.</div>`;
     html += card('Notation and equations', `<p>Every formula used on this site, written once. ${FN_MATH.tex('c')} is a class, ${FN_MATH.tex(String.raw`TP_c,\ FP_c,\ FN_c`)} are pooled pixel counts over the test images and ${FN_MATH.tex('s')} is a training seed.</p>`
         + `<h3 class="fn-eq-group">Metrics</h3>${FN_MATH.equations(['fmiou', 'iou', 'majority', 'miou3', 'fwiou', 'acc', 'precision', 'recall', 'dice'])}`
         + `<h3 class="fn-eq-group">Data and training</h3>${FN_MATH.equations(['norm', 'weights', 'ce'])}`
-        + `<h3 class="fn-eq-group">Refinement</h3>${FN_MATH.equations(['crf'])}`
         + ('')
         + ('')
         + `<h3 class="fn-eq-group">Statistics</h3>${FN_MATH.equations(['budget', 'bootstrap', 'decision'])}`);
@@ -417,8 +405,7 @@ function methodology() {
     html += card('Fair comparison and model selection', `<details class="fn-details" open><summary>What is held constant?</summary><p>Image IDs within each budget, input resolution, target labels, validation and test sets, metrics, and each method's settings across budgets and seeds.</p></details>`
         + `<details class="fn-details"><summary>What differs between the methods?</summary><p>Hand-crafted region features and forest fitting versus learned pixel features and gradient training. This compares practical pipelines, not isolated architectures.</p></details>`
         + `<details class="fn-details"><summary>What happens during augmentation?</summary><p>Only U-Net training receives matched flips and quarter-turn rotations, plus mild image-only brightness/contrast changes. Validation and test inputs are never augmented.</p></details>`
-        + `<details class="fn-details"><summary>How is leakage controlled?</summary><p>Only training images supply features, class weights and subsets. Validation selects the U-Net checkpoint${' and the CRF setting'}. The ${data.protocol.trained_runs} trained runs and the overlap analysis were frozen before their test evaluation; the hybrid${' was'} frozen separately before ${'its own'} single test evaluation.</p></details>`
-        + `<details class="fn-details"><summary>Why is the hybrid not retrained?</summary><p>The methodology defines the hybrid as post-processing: it reuses each U-Net checkpoint unchanged, so any difference from the U-Net comes from the CRF alone.</p></details>`);
+        + `<details class="fn-details"><summary>How is leakage controlled?</summary><p>Only training images supply features, class weights and subsets. Validation selects the U-Net checkpoint. The ${data.protocol.trained_runs} trained runs and the overlap analysis were frozen before their test evaluation.</p></details>`);
     return html;
 }
 
@@ -462,42 +449,11 @@ function overlapStrataCard() {
         + `<div class="fn-callout">This is a weak test: most images in the lower-overlap half still share a large part of their ground with training (anything below ${pct(targets.split_overlap, 0)}), and only ${targets.images - targets.overlapping} target images have no overlap at all. It can show whether more shared ground means higher scores, but it cannot show how the models would score on a new flood area. For transparency, the ${num(overlap.summary.test.clean)} test images with no overlap (only ${targets.clean_with_building} with flooded buildings and ${targets.clean_with_road} with flooded roads) give the original U-Net (100%) ${meanSd(clean)} flooded mIoU, because false alarms across many target-free scenes weigh heavily against very few target pixels. They are listed in the all-runs CSV but not used as a leakage estimate.</div>`);
 }
 
-function crfCard() {
-    const hybrid = data.hybrid;
-    if (!hybrid || !data.crf_effects.length) return '';
-    const rows = bundle().crf_effects.map(e => {
-        const cell = key => `<td>${points(e.full[key].mean)}<span class="fn-seed-values"><br>${e.full[key].values.map(points).join(' · ')}</span></td>`;
-        return `<tr><td>${e.budget}%</td><td class="fn-score">${points(e.full.flooded_miou.mean)}<small>seeds: ${e.full.flooded_miou.values.map(points).join(' · ')}</small></td>${cell('building_iou')}${cell('road_iou')}${cell('building_recall')}${cell('road_recall')}</tr>`;
-    }).join('');
-    const label = params => `sxy ${params.bilateral.sxy} · srgb ${params.bilateral.srgb} · weight ${params.bilateral.compat}`;
-    const grid = hybrid.grid.map(row => `<tr${row.selected ? ' class="fn-selected-row"' : ''}><td>${esc(row.round)}</td><td>${label(row.params)}${row.selected ? ' <span class="fn-pill good">selected</span>' : ''}</td><td>${points(row.mean_gain)}</td><td>${points(row.min_gain)} to ${points(row.max_gain)}</td></tr>`).join('');
-    const chosen = hybrid.grid.find(row => row.selected);
-    const verdict = hybrid.adopted
-        ? `Validation <strong>adopted</strong> refinement: the selected setting improved ${chosen.min_gain > 0 ? 'every' : 'the average'} U-Net run on validation (${points(hybrid.selected_mean_gain)} on average).`
-        : `Validation <strong>rejected</strong> refinement: no setting improved the U-Net on validation, so the hybrid is reported only for completeness.`;
-    const sxys = hybrid.grid.map(row => row.params.bilateral.sxy);
-    const srgbs = hybrid.grid.map(row => row.params.bilateral.srgb);
-    const atEdge = [Math.min(...sxys), Math.max(...sxys)].includes(hybrid.selected.bilateral.sxy)
-        || [Math.min(...srgbs), Math.max(...srgbs)].includes(hybrid.selected.bilateral.srgb);
-    const edgeNote = atEdge ? ' The chosen setting lies at the edge of the pre-set grid; values beyond it were not tried, to keep tuning minimal.' : '';
-    const afterNote = '';
-    return `<section class="fn-card"><h2>Does CRF refinement help?</h2>`
-        + `<p>Each hybrid run refines the exact U-Net checkpoint with the same seed and budget, so the change below is caused by the CRF alone. Values are the test-set change from that U-Net run to its refined version.</p>`
-        + `<div class="fn-table-wrap"><table class="fn-table"><thead><tr><th>Labels</th><th>Flooded mIoU change</th><th>Building IoU</th><th>Road IoU</th><th>Building recall</th><th>Road recall</th></tr></thead><tbody>${rows}</tbody></table></div>`
-        + `<div class="fn-callout">${verdict} One setting is used for both budgets and all seeds.${edgeNote}${afterNote}</div>`
-        + `<details class="fn-details"><summary>Validation tuning grid (${hybrid.grid.length} settings)</summary><div class="fn-table-wrap"><table class="fn-table"><thead><tr><th>Round</th><th>Appearance kernel</th><th>Mean validation change</th><th>Range across the 6 U-Net runs</th></tr></thead><tbody>${grid}</tbody></table></div>`
-        + `<p class="fn-figure-note">Validation flooded-class mIoU change over each run's own U-Net. The test split was not used for tuning. Spatial kernel fixed at sxy ${hybrid.selected.gaussian.sxy}, weight ${hybrid.selected.gaussian.compat}; ${hybrid.selected.iterations} iterations.</p></details>`
-        + `<div class="fn-downloads">${download('crf_tuning', 'CRF tuning CSV')}${download('hybrid_experiment', 'Hybrid freeze manifest')}</div></section>`;
-}
-
-
 function resultsTakeaways() {
     const best = [...bundle().summary].filter(s => s.budget === 100).sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0];
-    const crf = bundle().crf_effects.find(e => e.budget === 100);
     return takeaways([
         best ? `Best at 100% labels: <strong>${esc(METHOD[best.method].name)}</strong>, ${meanSd(best.full.flooded_miou)}.` : '',
-        `More labels: U-Net ${points(effectFor('unet')?.full.mean)}, SLIC + RF ${points(effectFor('rf')?.full.mean)} (25% → 100%, seed-matched).`,
-        crf ? `DenseCRF refinement at 100%: ${points(crf.full.flooded_miou.mean)} over its own U-Net.` : ''
+        `More labels: U-Net ${points(effectFor('unet')?.full.mean)}, SLIC + RF ${points(effectFor('rf')?.full.mean)} (25% → 100%, seed-matched).`
     ]);
 }
 
@@ -626,8 +582,8 @@ function shiftTable(base, other, methods = METHODS) {
 function firstVersionCard() {
     const n = runsFor('rf', 100, 'original')[0]?.region_class_counts;
     const u = runsFor('rf', 100)[0]?.region_class_counts;
-    return card('First version of the Random Forest (kept for reference)', `<p>The first results did not treat the three models the same way. The U-Net (and therefore the U-Net + CRF) used capped inverse-frequency class weights on every training pixel. The Random Forest used sklearn's uncapped “balanced” weights and a ${num(data.protocol.rf_max_regions)}-region training cap${n && u ? `, which at 100% labels kept only ${num(n[0])} of ${num(u[0])} “Other” regions` : ''}. Comparing the three models then mixes up the model with its imbalance handling.</p>`
-        + `<p>The pipeline now gives the forest the U-Net's own class weights and every training region. The U-Net and U-Net + CRF runs did not change; only the six forests were retrained. The first-version forest stays here for reference:</p>`
+    return card('First version of the Random Forest (kept for reference)', `<p>The first results did not treat the two models the same way. The U-Net used capped inverse-frequency class weights on every training pixel. The Random Forest used sklearn's uncapped “balanced” weights and a ${num(data.protocol.rf_max_regions)}-region training cap${n && u ? `, which at 100% labels kept only ${num(n[0])} of ${num(u[0])} “Other” regions` : ''}. Comparing the two models then mixes up the model with its imbalance handling.</p>`
+        + `<p>The pipeline now gives the forest the U-Net's own class weights and every training region. The U-Net runs did not change; only the six forests were retrained. The first-version forest stays here for reference:</p>`
         + shiftTable('original', 'before', ['rf']));
 }
 
@@ -641,13 +597,12 @@ function resultsPage() {
     html += metricGuideCard();
     html += resultsChart();
     html += budgetCard();
-    html += crfCard();
     html += overlapStrataCard();
     const runs = bundle().runs;
     if (!runs.some(r => r.id === state.metricRun)) state.metricRun = runs[runs.length - 1].id;
     const options = runs.map(r => `<option value="${esc(r.id)}" ${r.id === state.metricRun ? 'selected' : ''}>${esc(METHOD[r.method].short)} · ${r.budget}% · seed ${r.seed}</option>`).join('');
     html += `<section class="fn-card"><div class="fn-card-top"><h2>Inspect a single run</h2><div class="fn-control"><label for="fn-metric-run">Run</label><select id="fn-metric-run">${options}</select></div></div>${runInspector()}</section>`;
-    html += card('Download the numbers', `<p>Per-seed and per-image scores of the first-version runs, as CSV (the U-Net and U-Net + CRF rows match this page; the forest rows are the first version).</p><div class="fn-downloads">${download('summary', 'Seed summary CSV')}${download('aggregate', 'All runs CSV')}${download('per_image', 'Per-image metrics CSV')}</div>`);
+    html += card('Download the numbers', `<p>Per-seed and per-image scores of the first-version runs, as CSV (the U-Net rows match this page; the forest rows are the first version).</p><div class="fn-downloads">${download('summary', 'Seed summary CSV')}${download('aggregate', 'All runs CSV')}${download('per_image', 'Per-image metrics CSV')}</div>`);
     return html;
 }
 
@@ -691,30 +646,29 @@ function trainingPage() {
         const s = summaryFor(item.method, item.budget);
         const runs = runsFor(item.method, item.budget);
         const peak = Math.max(...runs.map(r => r.peak_gpu_allocated_bytes ?? -1));
-        const device = item.method === 'hybrid' ? `${runs[0]?.device || 'GPU'} + CPU CRF` : runs[0]?.device || 'N/A';
-        const training = item.method === 'hybrid' ? 'No training<span class="fn-seed-values"><br>reuses the U-Net checkpoint</span>'
-            : `${seconds(s.training_seconds.mean)}<span class="fn-seed-values"><br>${seedValues(s.training_seconds, seconds)}</span>`;
+        const device = runs[0]?.device || 'N/A';
+        const training = `${seconds(s.training_seconds.mean)}<span class="fn-seed-values"><br>${seedValues(s.training_seconds, seconds)}</span>`;
         const epochs = s.epochs?.mean != null ? `${s.epochs.mean.toFixed(1)} (${s.epochs.min}–${s.epochs.max})` : 'N/A';
         return `<tr><td>${esc(METHOD[item.method].short)} · ${item.budget}%</td><td>${training}</td>`
             + `<td>${(s.inference_median_seconds.mean * 1000).toFixed(1)} ms</td><td>${epochs}</td>`
-            + `<td>${peak < 0 || item.method === 'hybrid' ? 'N/A' : `${(peak / 2 ** 20).toFixed(0)} MiB`}</td><td>${esc(device)}${runs[0]?.precision ? `<br><small>${esc(runs[0].precision.replace('torch.', ''))}</small>` : ''}</td></tr>`;
+            + `<td>${peak < 0 ? 'N/A' : `${(peak / 2 ** 20).toFixed(0)} MiB`}</td><td>${esc(device)}${runs[0]?.precision ? `<br><small>${esc(runs[0].precision.replace('torch.', ''))}</small>` : ''}</td></tr>`;
     }).join('');
     html += card('Measured resources', `<div class="fn-table-wrap"><table class="fn-table"><thead><tr><th>Configuration</th><th>Training time (mean)</th><th>Median inference</th><th>Epochs</th><th>Peak GPU allocated</th><th>Device</th></tr></thead><tbody>${rows}</tbody></table></div>`);
     let timing = `<p>RF training time covers forest fitting. U-Net training time includes per-epoch validation and checkpointing. Shared preprocessing and RF feature extraction are recorded separately.</p>`
-        + `<p>Inference is one image at a time, after warm-up. It starts from the processed RGB in memory and ends with a CPU mask. RF includes fresh SLIC segmentation and feature extraction (single-threaded forest prediction); U-Net includes normalisation, GPU transfer, the forward pass and argmax; U-Net + CRF adds the softmax and a single-threaded DenseCRF on the CPU. Decoding the original photo is excluded for all three.</p>`;
+        + `<p>Inference is one image at a time, after warm-up. It starts from the processed RGB in memory and ends with a CPU mask. RF includes fresh SLIC segmentation and feature extraction (single-threaded forest prediction); U-Net includes normalisation, GPU transfer, the forward pass and argmax. Decoding the original photo is excluded for both.</p>`;
     timing += `<p>The retrained forests were trained while other runs shared the CPU and GPU, so their timings are less precise than those of the first-version runs.</p>`;
-    if (data.dataset) timing += `<p>Shared preparation: <strong>${seconds(data.dataset.preprocessing_seconds)}</strong>; RF feature extraction: <strong>${seconds(data.dataset.feature_preparation_seconds)}</strong>${data.hybrid ? `; CRF validation tuning (all settings, all six U-Net runs): <strong>${seconds(data.hybrid.tuning_seconds)}</strong>` : ''}.</p>`;
+    if (data.dataset) timing += `<p>Shared preparation: <strong>${seconds(data.dataset.preprocessing_seconds)}</strong>; RF feature extraction: <strong>${seconds(data.dataset.feature_preparation_seconds)}</strong>.</p>`;
     html += card('What is included in the timings?', timing);
     return html;
 }
 
 
 function explorerPage() {
-    let html = header('explorer', 'Look beyond the average.', `Every image comes from the held-out test split. The same image and budget are shown for all three approaches.`);
+    let html = header('explorer', 'Look beyond the average.', `Every image comes from the held-out test split. The same image and budget are shown for both approaches.`);
     if (!data.samples.length) return html + notice() + empty('Prediction gallery pending', 'The gallery appears after data preparation and final evaluation.');
     const presence = [['all', 'All images'], ['building', 'Flooded building'], ['road', 'Flooded road'], ['both', 'Both targets'], ['neither', 'Neither target']];
     const overlap = [['all', 'All test images'], ['clean', 'No training overlap'], ['overlapping', 'Overlaps training']];
-    const sorts = [['id', 'Image ID'], ['worst-unet', 'U-Net: lowest target IoU'], ['worst-hybrid', 'U-Net + CRF: lowest target IoU'], ['worst-rf', 'RF: lowest target IoU'], ['coverage', 'Target pixel share'], ['overlap', 'Largest training overlap']];
+    const sorts = [['id', 'Image ID'], ['worst-unet', 'U-Net: lowest target IoU'], ['worst-rf', 'RF: lowest target IoU'], ['coverage', 'Target pixel share'], ['overlap', 'Largest training overlap']];
     if (!sorts.some(([v]) => v === state.sort)) state.sort = 'id';
     const select = (id, label, options, value) => `<div class="fn-control"><label for="${id}">${label}</label><select id="${id}">${options.map(([v, l]) => `<option value="${v}" ${v === value ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
     html += `<section class="fn-card"><div class="fn-controls">`
@@ -925,15 +879,6 @@ function interpretation() {
             + `<p>These are seed-matched differences: the same seed is trained at both budgets, so the comparison isolates the labelled-data change. The U-Net gain varies a lot between seeds, so a single run could have under- or over-stated it. Three seeds show stability, not statistical significance.</p>`
             + `<p>${rfText}</p>`
             + (`<p class="fn-small fn-muted">The first-version forest (balanced weights, ${num(data.protocol.rf_max_regions)}-region cap) changed by ${points(effectFor('rf', 'original').full.mean)} with more labels: at 100% its cap discarded most of the extra “Other” regions. See <a href="#results">Results</a>.</p>`));
-        if (B.crf_effects.length && data.hybrid) {
-            const effect = budget => B.crf_effects.find(e => e.budget === budget).full;
-            const consistent = B.crf_effects.every(e => e.full.flooded_miou.values.every(v => v > 0)) ? 'improved every U-Net run at both budgets'
-                : B.crf_effects.every(e => e.full.flooded_miou.values.every(v => v < 0)) ? 'lowered every U-Net run at both budgets' : 'did not change every U-Net run in the same direction';
-            const classes = budget => `building IoU ${points(effect(budget).building_iou.mean)}, road IoU ${points(effect(budget).road_iou.mean)}`;
-            html += card('Does CRF refinement help?', `<p class="fn-insight">On the test split, DenseCRF refinement changes the U-Net's flooded-class mIoU by ${points(effect(25).flooded_miou.mean)} at 25% labels and ${points(effect(100).flooded_miou.mean)} at 100%; it ${consistent}.</p>`
-                + `<p>Per class: ${classes(25)} at 25%; ${classes(100)} at 100%. The setting was chosen on validation (mean gain ${points(data.hybrid.selected_mean_gain)}) before the test split was scored, and validation ${data.hybrid.adopted ? 'adopted' : 'rejected'} refinement. The CRF only reuses each U-Net's own probabilities and the image colours, so these changes come from sharper, colour-aware boundaries rather than new learning. The cost is roughly ${(summaryFor('hybrid', 100).inference_median_seconds.mean * 1000 - summaryFor('unet', 100).inference_median_seconds.mean * 1000).toFixed(0)} ms more CPU time per image.`
-                + ('') + `</p>`);
-        }
         const overlap = overlapInfo();
         const strata = summaryFor('unet', 100).overlap_low && summaryFor('unet', 100).overlap_high;
         if (overlap && strata) {
@@ -947,31 +892,28 @@ function interpretation() {
         + (reps.length ? `<div class="fn-rep-grid">${reps.map(s => `<div class="fn-rep">${zoomable(`<img src="${esc(s.rgb)}" loading="lazy" alt="Representative image ${esc(s.image_id)}">`, `representative image ${s.image_id}`, { group: 'representatives', title: `Image ${s.image_id}`, hires: s.id, caption: `${targetText(s)} · ${pct(s.target_fraction)} target pixels` })}`
             + `<span>Image ${plain(s.image_id)} · ${pct(s.target_fraction)} target pixels<br><a href="#explorer" data-representative="${esc(s.id)}">Explorer →</a> <a href="#walkthrough" data-walkthrough="${esc(s.id)}">Step by step →</a></span></div>`).join('')}</div>` : empty('Representative scenes pending')));
     html += card('Failure cases deserve a closer look', `<p>In the explorer, sort by a model's lowest target IoU to examine missed or confused infrastructure.</p><a class="fn-primary-btn" href="#explorer" data-failures="unet">Inspect U-Net failure cases →</a>`);
-    html += card('Limits on interpretation', `<ul>${data.limitations.map(x => `<li>${esc(x)}</li>`).join('')}${'<li>The forest was revised after its first test evaluation so that all three models handle the imbalance the same way; only the forest changed, the rule was fixed in advance, and the first version is kept and reported.</li>'}</ul><p>SDG 11 and SDG 13 motivate the study. Real-world benefit for responders would need separate validation.</p>`);
+    html += card('Limits on interpretation', `<ul>${data.limitations.map(x => `<li>${esc(x)}</li>`).join('')}${'<li>The forest was revised after its first test evaluation so that both models handle the imbalance the same way; only the forest changed, the rule was fixed in advance, and the first version is kept and reported.</li>'}</ul><p>SDG 11 and SDG 13 motivate the study. Real-world benefit for responders would need separate validation.</p>`);
     return html;
 }
 
 function reproducibility() {
     let html = header('reproducibility', 'Every result has a trail.', 'Saved configurations, fixed subset IDs, model hashes and evaluation artifacts connect this page to the underlying experiment.');
-    html += card('Download the experiment records', `<div class="fn-downloads">${download('summary', 'Seed summary CSV')}${download('aggregate', 'All runs CSV')}${download('per_image', 'Per-image metrics CSV')}${download('overlap', 'Verified overlap pairs CSV')}${download('crf_tuning', 'CRF tuning CSV')}${download('budgets', 'Exact budget image IDs')}${download('experiment', 'Frozen 12-run manifest')}${download('hybrid_experiment', 'Hybrid freeze manifest')}</div>${Object.keys(data.downloads).length ? '' : empty('Downloads appear after export')}`);
+    html += card('Download the experiment records', `<div class="fn-downloads">${download('summary', 'Seed summary CSV')}${download('aggregate', 'All runs CSV')}${download('per_image', 'Per-image metrics CSV')}${download('overlap', 'Verified overlap pairs CSV')}${download('budgets', 'Exact budget image IDs')}${download('experiment', 'Frozen 12-run manifest')}</div>${Object.keys(data.downloads).length ? '' : empty('Downloads appear after export')}`);
     const p = data.protocol;
     html += card('Protocol at a glance', `<dl class="fn-definition-list"><dt>Export schema</dt><dd>Version ${data.schema_version}</dd><dt>Subset seed</dt><dd>${p.subset_seed}</dd><dt>Training seeds</dt><dd>${p.train_seeds.join(', ')}</dd>`
         + `<dt>Model input</dt><dd>${p.size}×${p.size}, aspect ratio preserved</dd><dt>Budgets</dt><dd>Nested 25% / 100%, stratified by target presence</dd>`
         + (`<dt>RF imbalance handling</dt><dd>The U-Net's capped class weights; every training region (first version: “balanced” weights, cap ${num(p.rf_max_regions)})</dd>`)
         + ('')
-        + (data.hybrid ? `<dt>Hybrid CRF</dt><dd>${esc(data.hybrid.backend)}; selected on validation (${data.hybrid.adopted ? 'adopted' : 'rejected'})</dd>` : '')
         + `<dt>Ignored label</dt><dd>255 (generated padding)</dd><dt>Exported</dt><dd>${plain(new Date(data.exported_at).toLocaleString())}</dd></dl>`);
     if (data.experiment_identity) {
         html += card('Frozen experiment identities', `<p class="fn-small fn-muted">12 trained runs and the overlap analysis</p><p class="fn-hash">${esc(data.experiment_identity)}</p>`
-            + (data.hybrid_experiment_identity ? `<p class="fn-small fn-muted">Hybrid runs and their CRF selection (frozen after validation tuning, before their test evaluation)</p><p class="fn-hash">${esc(data.hybrid_experiment_identity)}</p>` : '')
             + (`<p class="fn-small fn-muted">The six retrained forests, frozen ${plain(new Date(uniform.frozen_at).toLocaleString())}</p><p class="fn-hash">${esc(uniform.experiment_identity)}</p>`)
             + `<p>Checkpoints stay in the local experiment workspace. This static page reads only exported display files.</p>`);
     }
     const rows = bundle().runs.map(r => `<tr><td>${esc(r.id.replace(/^undersample\/uniform\//, ''))}</td><td>${esc(METHOD[r.method].short)}</td><td>${r.budget}%</td><td>${r.seed}</td><td>${pct(r.metrics.flooded_miou)}</td><td><span class="fn-hash" style="display:inline-block;padding:3px 6px">${esc(r.checkpoint_sha256.slice(0, 16))}…</span></td></tr>`).join('');
-    if (rows) html += card('All runs', `<div class="fn-table-wrap"><table class="fn-table"><thead><tr><th>Run</th><th>Method</th><th>Labels</th><th>Seed</th><th>Flooded mIoU</th><th>Checkpoint SHA-256</th></tr></thead><tbody>${rows}</tbody></table></div><p class="fn-figure-note">A hybrid run lists the checkpoint of the U-Net run it refines; it trains no weights of its own.</p>`);
+    if (rows) html += card('All runs', `<div class="fn-table-wrap"><table class="fn-table"><thead><tr><th>Run</th><th>Method</th><th>Labels</th><th>Seed</th><th>Flooded mIoU</th><th>Checkpoint SHA-256</th></tr></thead><tbody>${rows}</tbody></table></div>`);
     if (data.reproducibility) {
         html += card('Configuration and software', `<details class="fn-details"><summary>Saved configuration</summary><pre class="fn-code">${esc(JSON.stringify(data.reproducibility.config, null, 2))}</pre></details>`
-            + (data.reproducibility.crf ? `<details class="fn-details"><summary>Selected CRF settings</summary><pre class="fn-code">${esc(JSON.stringify(data.reproducibility.crf, null, 2))}</pre></details>` : '')
             + `<details class="fn-details"><summary>Software versions</summary><pre class="fn-code">${esc(JSON.stringify(data.reproducibility.versions, null, 2))}</pre></details>`);
     }
     html += card('Sources and attribution', `<ul>${data.sources.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a></li>`).join('')}</ul><p>Dataset: Rahnemoonfar et al., FloodNet, IEEE Access (2021). The project README lists every command needed to reproduce these results.</p>`);
@@ -1023,7 +965,7 @@ function syncViewButtons() {
             : `Full details: every result. ${beforeNote()} Three classes, 256 px.`;
     }
     const copy = $('#fn-sidebar-copy');
-    if (copy) copy.textContent = `${state.mode === 'presentation' ? 'Two' : 'Three'} approaches. Two data budgets. Three seeds. One shared protocol.`;
+    if (copy) copy.textContent = `Two approaches. Two data budgets. Three seeds. One shared protocol.`;
     renderNav();
     updateStatus();
 }

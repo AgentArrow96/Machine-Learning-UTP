@@ -155,24 +155,6 @@ def decode_regions(encoded):
     return encoded[..., 0] + (encoded[..., 1] << 8) - 1
 
 
-def crf_iterations(probs, rgb, params):
-    """Label map after each mean-field step (index 0 = before any step); same model as hybrid.refine_valid."""
-    import pydensecrf.densecrf as dcrf
-    from pydensecrf.utils import unary_from_softmax
-    classes, height, width = probs.shape
-    crf = dcrf.DenseCRF2D(width, height, classes)
-    crf.setUnaryEnergy(np.ascontiguousarray(unary_from_softmax(np.ascontiguousarray(probs, dtype=np.float32))))
-    crf.addPairwiseGaussian(sxy=params["gaussian"]["sxy"], compat=params["gaussian"]["compat"])
-    crf.addPairwiseBilateral(sxy=params["bilateral"]["sxy"], srgb=params["bilateral"]["srgb"],
-                             rgbim=np.ascontiguousarray(rgb, dtype=np.uint8), compat=params["bilateral"]["compat"])
-    q, scratch, scratch2 = crf.startInference()
-    steps = [np.array(q, dtype=np.float32).reshape(classes, height, width).argmax(0).astype(np.uint8)]
-    for _ in range(params["iterations"]):
-        crf.stepInference(q, scratch, scratch2)
-        steps.append(np.array(q, dtype=np.float32).reshape(classes, height, width).argmax(0).astype(np.uint8))
-    return steps
-
-
 def image_scores(truth, prediction):
     from .export import flat_metrics
     from .metrics import confusion, score
@@ -312,32 +294,7 @@ def unet_steps(unet, run_id, record, rgb, truth, write, budget):
             "check": match(prediction, frozen_prediction(run_id, key), g)}, prediction
 
 
-def hybrid_steps(hybrid, run_id, record, rgb, truth, unet_prediction, write, budget):
-    from .hybrid import refine_valid, valid_window
-    g, key = record["geometry"], record["id"]
-    probs = hybrid.unet.probabilities(rgb)
-    window, content = valid_window(probs, g), crop(rgb, g)
-    steps = crf_iterations(window, content, hybrid.params)
-    if not np.array_equal(steps[-1], refine_valid(window, content, hybrid.params)):
-        raise ProjectError("Stepped mean-field inference differs from DenseCRF inference")
-    prediction = probs.argmax(0).astype(np.uint8)
-    valid_window(prediction, g)[...] = steps[-1]
-    base = crop(unet_prediction, g)
-    truth_crop = crop(truth, g)
-    final = steps[-1]
-    return {"run_id": run_id, "params": hybrid.params,
-            "iterations": [write.png(f"{key}_crf_{budget}_it{i}", s) for i, s in enumerate(steps)],
-            "changed_from_unet": [int(np.count_nonzero(s != base)) for s in steps],
-            "changed_from_previous": [0] + [int(np.count_nonzero(a != b)) for a, b in zip(steps[1:], steps[:-1])],
-            "fixed": int(np.count_nonzero((base != truth_crop) & (final == truth_crop))),
-            "broken": int(np.count_nonzero((base == truth_crop) & (final != truth_crop))),
-            "mask": write.png(f"{key}_hybrid_{budget}", final),
-            "scores": image_scores(truth_crop, final),
-            "check": match(prediction, frozen_prediction(run_id, key), g)}
-
-
-def export_walkthrough(cfg, rf_variant=None):
-    """`rf_variant` (e.g. "undersample/uniform") replays that study's forests instead of the frozen originals."""
+def export_walkthrough(cfg):
     from .evaluation import load_engine
     from .export import check_url
     from .features import FEATURE_NAMES
@@ -348,9 +305,7 @@ def export_walkthrough(cfg, rf_variant=None):
     seed = bundle["protocol"]["explorer_seed"]
     examples = bundle["representatives"]
     web = inside("web")
-    parts = {"version": WALKTHROUGH_VERSION, "experiment": bundle["experiment_identity"],
-             "hybrid": bundle["hybrid_experiment_identity"], "examples": examples, "seed": seed}
-    identity = digest(parts | {"rf_variant": rf_variant} if rf_variant else parts)[:16]
+    identity = digest({"version": WALKTHROUGH_VERSION, "experiment": bundle["experiment_identity"], "examples": examples, "seed": seed})[:16]
     directory = web / f"data/walkthrough/{identity}"
     if directory.exists():
         shutil.rmtree(directory)
@@ -359,8 +314,8 @@ def export_walkthrough(cfg, rf_variant=None):
     engines = {}
     importances = {}
     for budget in (25, 100):
-        for method in ("rf", "unet", "hybrid"):
-            run_id = f"{rf_variant}/{method}_{budget}_s{seed}" if method == "rf" and rf_variant else f"{method}_{budget}_s{seed}"
+        for method in ("rf", "unet"):
+            run_id = f"{method}_{budget}_s{seed}"
             run_directory = inside(f"runs/{run_id}")
             engines[method, budget] = (run_id, load_engine(run_directory, read_json(run_directory / "run.json")))
         importances[str(budget)] = np.round(engines["rf", budget][1].model.feature_importances_, 5).tolist()
@@ -375,20 +330,16 @@ def export_walkthrough(cfg, rf_variant=None):
         for budget in (25, 100):
             rf_id, rf = engines["rf", budget]
             unet_id, unet = engines["unet", budget]
-            hybrid_id, hybrid = engines["hybrid", budget]
             rf_part, _ = rf_steps(rf, rf_id, record, rgb, truth, x, write, budget)
-            unet_part, unet_prediction = unet_steps(unet, unet_id, record, rgb, truth, write, budget)
-            hybrid_part = hybrid_steps(hybrid, hybrid_id, record, rgb, truth, unet_prediction, write, budget)
-            item["budgets"][str(budget)] = {"rf": rf_part, "unet": unet_part, "hybrid": hybrid_part}
+            unet_part, _ = unet_steps(unet, unet_id, record, rgb, truth, write, budget)
+            item["budgets"][str(budget)] = {"rf": rf_part, "unet": unet_part}
         output.append(item)
-    hybrid_params = engines["hybrid", 100][1].params
     result = {"schema_version": WALKTHROUGH_VERSION, "created_at": now(), "identity": identity, "seed": seed, "budgets": [25, 100],
-              "experiment_identity": bundle["experiment_identity"], "hybrid_experiment_identity": bundle["hybrid_experiment_identity"],
-              "rf_variant": rf_variant,
+              "experiment_identity": bundle["experiment_identity"],
               "classes": [{"id": i, "name": n, "colour": COLOURS[i]} for i, n in enumerate(CLASSES)],
               "original_classes": [{"id": i, "name": n, "colour": c} for i, (n, c) in enumerate(zip(ORIGINAL_CLASSES, original_colours()))],
               "normalisation": {"mean": MEAN.round(3).tolist(), "std": STD.round(3).tolist()},
-              "feature_names": FEATURE_NAMES, "feature_importances": importances, "crf": hybrid_params,
+              "feature_names": FEATURE_NAMES, "feature_importances": importances,
               "selection": "The six representative test scenes, chosen by target presence and pixel coverage, never by prediction quality.",
               "examples": output}
     urls = [u for e in output for u in walk_urls(e)]

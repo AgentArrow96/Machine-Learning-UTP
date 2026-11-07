@@ -1,6 +1,6 @@
-# Experiment protocol (v2)
+# Experiment protocol
 
-v2 replaces the single-seed v1 experiment. The v1 artifacts are preserved under `runs/archive/v1_f341bd24/`; see "Changes from v1" in [results.md](results.md).
+The protocol of the final report: SLIC + Random Forest and a ResNet-18 U-Net, two label budgets, three seeds. An earlier single-seed version of the experiment is preserved under `runs/archive/v1_f341bd24/` on the original machine.
 
 ## Question and targets
 
@@ -33,7 +33,9 @@ Consecutive UAV frames overlap, and the official split assigns frames independen
 
 SLIC uses approximately 250 connected superpixels and compactness 10 on unpadded content. Region features are RGB/HSV mean/std plus ten normalised uniform LBP bins (P=8, R=1). Majority ground-truth labels use the lowest class ID to break ties.
 
-The forest uses 150 trees, maximum depth 20, balanced class weights, the training seed, and up to eight CPU workers for fitting. **Region sampling (`keep_targets`):** every flooded-building and flooded-road region from the budget's images is kept; the remainder of the 100k-region cap is filled with Other regions, shuffled within each image and drawn round-robin across images. (v1 sampled uniformly, which discarded about two-thirds of the flooded regions at the 100% budget.) Sampled image/region IDs are saved; all three classes must be present. Inference predicts one image at a time with a single-threaded forest.
+The forest uses 150 trees, maximum depth 20, the training seed, and up to eight CPU workers for fitting. **Class imbalance:** the forest is weighted exactly like the U-Net, with the capped inverse-frequency pixel weights of the same training images (`class_weight: "pixel_clipped"`, see the neural pipeline), and it is fitted on **every** training region (`max_regions` 10⁹, so the `keep_targets` sampler keeps all regions). Region IDs are saved; all three classes must be present.
+
+A first version used sklearn's uncapped "balanced" weights and a 100k-region cap that kept every flooded region but only about a third of the Other regions at 100%. It was evaluated, then replaced by the rule above so that both models handle the imbalance the same way; only the six forests were retrained, and the first version is kept and reported as a reference. Inference predicts one image at a time with a single-threaded forest.
 
 ## Neural pipeline
 
@@ -43,20 +45,14 @@ For training-subset pixel proportions p, form inverse-frequency weights 1/p, nor
 
 Training uses matched horizontal/vertical flips, random quarter-turns, and image-only contrast/brightness magnitude 0.1. Validation/test transforms are deterministic. Maximum 30 epochs; stop after six consecutive non-improving validation flooded-mIoU epochs. A strictly greater score replaces the best checkpoint; ties keep the earlier one. No hyperparameter search.
 
-## Hybrid pipeline (U-Net + DenseCRF)
-
-Methodology section C, added after the 12-run freeze. No network is trained: each of the six final U-Net checkpoints is reused unchanged, and its float32 softmax probabilities (the same logits whose argmax gives the U-Net result) are refined by a fully connected CRF (`pydensecrf2` 1.1, built from source with MSVC because no Windows wheels exist). The CRF runs on the CPU over the unpadded image only: unary `-log p`, a spatial Gaussian kernel (sxy 3, weight 3) and an appearance kernel on the 256-px RGB, 5 mean-field iterations, then argmax.
-
-Settings are chosen on validation only (`configs/hybrid.json`): appearance kernel sxy ∈ {20, 50, 80} × srgb ∈ {5, 13}, weight 10. The selected setting maximises the mean validation flooded-mIoU gain over each run's own U-Net across all six U-Net runs, and one setting is shared by both budgets and all seeds. If no setting helps, the one adjustment the methodology allows is tried: a weaker appearance weight (5, 3). Validation adopts refinement only if the mean gain is positive; the hybrid is reported on test either way. The selection (`runs/hybrid_selection.json`) and the six hybrid runs are frozen in `runs/hybrid_experiment.json`, which references the 12-run freeze, before any hybrid test evaluation. Each hybrid's validation evaluation must reproduce its tuning score exactly. The paired effect of the CRF is the seed-matched change from each U-Net run to its refinement.
-
 ## Metrics and timing
 
 Confusion rows are ground truth, columns predictions. Pool counts over the evaluated images before computing IoU/Dice/recall. The primary score is the mean IoU of the defined target classes; on the complete release both targets must be supported. Three-class mIoU averages defined class IoUs. Undefined denominators are null. Per-image scores include a defined-target count and are never averaged to form headline scores.
 
-All 12 models, their validation artifacts and the overlap analysis are frozen before held-out testing. Report every result, including weak performance. Training times exclude shared preprocessing/feature extraction; U-Net includes validation/checkpointing. Inference is batch one, after ten warm-up images, on the first 50 sorted split IDs. Report median/P95 latency, use CUDA synchronisation, and include all per-image computation from processed host RGB to CPU prediction (for the hybrid: U-Net forward pass, softmax and a single-threaded CPU CRF). Original decoding is excluded for every method.
+All 12 models, their validation artifacts and the overlap analysis are frozen before held-out testing. Report every result, including weak performance. Training times exclude shared preprocessing/feature extraction; U-Net includes validation/checkpointing. Inference is batch one, after ten warm-up images, on the first 50 sorted split IDs. Report median/P95 latency, use CUDA synchronisation, and include all per-image computation from processed host RGB to CPU prediction. Original decoding is excluded for every method.
 
 ## Limits
 
-One event and region, three seeds on one subset, downsampled masks, verified neighbouring-frame overlap, different training procedures, and pretrained external ImageNet knowledge all limit interpretation. These results do not establish physical flooded area, depth, road passability, deployment readiness, adoption, or operational benefit. The hybrid's CRF setting lies at the edge of its small validation grid. Full ten-class segmentation is deferred.
+One event and region, three seeds on one subset, downsampled masks, verified neighbouring-frame overlap, different training procedures, and pretrained external ImageNet knowledge all limit interpretation. These results do not establish physical flooded area, depth, road passability, deployment readiness, adoption, or operational benefit. Full ten-class segmentation is deferred.
 
 Sources: supplied methodology/proposal PDFs in `pdf/`; [official dataset](https://github.com/BinaLab/FloodNet-Supervised_v1.0); [paper DOI](https://doi.org/10.1109/ACCESS.2021.3090981).

@@ -269,14 +269,9 @@ def prepare(cfg: dict) -> dict:
     return manifest
 
 
-def manifest_path_for(cfg: dict | None) -> str:
-    """256 px is the frozen cache; any other size (improvement study) has its own manifest outside data/manifests."""
-    return "data/manifests/processed.json" if cfg is None or cfg["size"] == 256 else f"data/improve/processed_{cfg['size']}.json"
-
-
 class Store:
     def __init__(self, cfg: dict | None = None):
-        self.manifest = read_json(manifest_path_for(cfg))
+        self.manifest = read_json("data/manifests/processed.json")
         if not self.manifest.get("complete"):
             raise ProjectError("Preparation is incomplete")
         if cfg is not None and self.manifest["identity"] != preprocessing_key(cfg, read_json("data/manifests/audit.json")):

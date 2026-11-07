@@ -6,7 +6,6 @@ import numpy as np
 import joblib
 from .common import ProjectError, digest, inside, log, now, read_json, relative, sha256, write_json
 from .data import Store
-from .features import extract_regions
 from .metrics import confusion, score
 
 
@@ -20,12 +19,9 @@ class RFEngine:
         self.model.n_jobs = 1
 
     def predict(self, rgb, geometry):
-        from .data import remap
         from .features import region_features
         x, _, regions = region_features(rgb, geometry, self.cfg)
         labels = self.model.predict(x)
-        if self.cfg["rf"].get("aux10"):
-            labels = remap(labels.astype(np.int64)[None]).ravel()  # 10-class forest -> 3 classes
         result = np.zeros(regions.shape, dtype=np.uint8)
         valid = regions >= 0
         result[valid] = labels[regions[valid]]
@@ -55,9 +51,8 @@ class UNetEngine:
         from .neural import tensor_image
         torch = self.torch
         x = tensor_image(rgb)[None].pin_memory().cuda(non_blocking=True)
-        from .neural import three_class
         with torch.inference_mode(), torch.autocast("cuda", dtype=self.dtype):
-            return three_class(self.model(x), self.cfg)
+            return self.model(x)
 
     def predict(self, rgb, geometry):
         return self.logits(rgb).argmax(1)[0].cpu().numpy().astype(np.uint8)
@@ -71,22 +66,10 @@ class UNetEngine:
         self.torch.cuda.synchronize()
 
 
-def checkpoint_file(directory, run):
-    """Hybrid runs train nothing: their checkpoint is the base U-Net run's checkpoint."""
-    base = run.get("base_run")
-    if not base:
-        return directory / run["checkpoint"]
-    return inside(base.get("directory", f"runs/{base['run_id']}")) / base["checkpoint"]
-
-
 def load_engine(directory, run):
-    if sha256(checkpoint_file(directory, run)) != run["checkpoint_sha256"]:
+    if sha256(directory / run["checkpoint"]) != run["checkpoint_sha256"]:
         raise ProjectError("Checkpoint hash changed since training completed")
-    method = run["identity"]["method"]
-    if method == "hybrid":
-        from .hybrid import HybridEngine
-        return HybridEngine(run)
-    return (RFEngine if method == "rf" else UNetEngine)(directory, run)
+    return (RFEngine if run["identity"]["method"] == "rf" else UNetEngine)(directory, run)
 
 
 def final_runs(cfg):
@@ -182,25 +165,8 @@ def evaluate(cfg, run_directory, split="val", final=False):
     if split == "test":
         if not final or run["run_type"] != "final":
             raise ProjectError("Held-out test requires --final and every completed, validated final run")
-        if "undersample_config_sha256" in run["identity"]:
-            # The uniform / undersampling study has its own freeze, before its single test evaluation.
-            from .undersample import freeze_undersample
-            frozen = freeze_undersample(cfg, store)
-            if relative(directory) not in frozen["tested"]:
-                raise ProjectError("Only the uniform RF, the chosen ratio and the blackening runs are scored on the test split")
-        elif "variant" in run["identity"]:
-            # Class-imbalance runs were added after every original test result; they have their own freeze.
-            from .imbalance import freeze_imbalance
-            frozen = freeze_imbalance(cfg, store)
-        elif run["identity"]["method"] == "hybrid":
-            # The hybrid was added after the 12-run freeze; it has its own freeze before test.
-            from .hybrid import freeze_hybrid
-            frozen = freeze_hybrid(cfg, store)
-        else:
-            frozen = freeze_experiment(cfg, store)
-        # Class-imbalance runs share names across variants, so their freeze lists them by directory.
-        run_key = relative(directory) if "variant" in run["identity"] else run["run_id"]
-        if run_key not in [r["run_id"] for r in frozen["runs"]]:
+        frozen = freeze_experiment(cfg, store)
+        if run["run_id"] not in [r["run_id"] for r in frozen["runs"]]:
             raise ProjectError("Run is outside the frozen experiment")
     output = directory / f"evaluation_{split}.json"
     records = store.select(split)
@@ -213,7 +179,7 @@ def evaluate(cfg, run_directory, split="val", final=False):
                 and cached["split"] == split and cached["image_count"] == len(records)
                 and [r["id"] for r in cached["per_image"]] == [r["id"] for r in records]
                 and cached["experiment_identity"] == (frozen["identity"] if frozen else None)
-                and sha256(checkpoint_file(directory, run)) == run["checkpoint_sha256"]
+                and sha256(directory / run["checkpoint"]) == run["checkpoint_sha256"]
                 and sha256(cached["predictions"]) == cached["predictions_sha256"]):
             log(f"Verified existing {split} evaluation: {run['run_id']}")
             return cached

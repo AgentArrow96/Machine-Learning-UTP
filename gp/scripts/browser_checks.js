@@ -57,10 +57,8 @@ async (page) => {
                     const all = await text(page.locator('#fn-page'));
                     const leak = all.match(OTHER_STUDIES);
                     assert(!leak, `${label}: no other study's content${leak ? ` (found "${leak[0]}")` : ''}`);
-                    if (mode === 'presentation') {
-                        const crf = all.match(/\bCRF\b|hybrid/i);
-                        assert(!crf, `${label}: SLIC + RF and U-Net only${crf ? ` (found "${crf[0]}")` : ''}`);
-                    }
+                    const crf = all.match(/CRF|hybrid/i);
+                    assert(!crf, `${label}: SLIC + RF and U-Net only${crf ? ` (found "${crf[0]}")` : ''}`);
                 }
             }
         }
@@ -148,9 +146,12 @@ async (page) => {
     await page.locator('.fn-walk-stage').waitFor();
     assert(await page.locator('[data-walk-example]').count() === walk.examples.length, 'Walkthrough offers every exported example');
     assert(walk.rf_variant === 'undersample/uniform', 'Walkthrough replays the retrained forests');
+    assert((await page.locator('[data-walk-tab]').evaluateAll(t => t.map(x => x.dataset.walkTab))).join() === 'prep,rf,unet', 'Walkthrough has only the preparation, forest and U-Net tabs');
+    assert(walk.examples.every(e => Object.keys(e.budgets).every(b => Object.keys(e.budgets[b]).sort().join() === 'rf,unet')) && !('crf' in walk), 'Walkthrough export holds only the forest and the U-Net');
     await page.locator('[data-walk-move="1"]').click();
     assert((await text(page.locator('.fn-walk-head'))).toLowerCase().includes('step 2 of 4'), 'Walkthrough Next step works');
-    assert((await page.locator('.fn-walk-checks li').allInnerTexts()).every(t => t.includes('✓')), 'Walkthrough shows a frozen-prediction match for every method');
+    const walkChecks = await page.locator('.fn-walk-checks li').allInnerTexts();
+    assert(walkChecks.length === 2 && walkChecks.every(t => t.includes('✓')), 'Walkthrough shows a frozen-prediction match for both methods');
     await go('results');
     await page.screenshot({ path: 'output/playwright/results-desktop.png', fullPage: true });
     assert(await page.locator('.fn-metrics-table').first().locator('tbody tr').count() === uniform.summary.length + 1, 'Results lists every metric for every configuration, plus the all-"Other" reference');
@@ -168,8 +169,7 @@ async (page) => {
     const best = uniform.summary.find(s => s.method === 'unet' && s.budget === 100);
     const strata = await text(page.getByRole('heading', { name: 'Does scene overlap inflate the scores?' }).locator('..'));
     assert(strata.includes(pct(best.overlap_low.flooded_miou.mean)) && strata.includes(pct(best.overlap_high.flooded_miou.mean)), 'Overlap-strata card shows both halves');
-    const crf = page.getByRole('heading', { name: 'Does CRF refinement help?' }).locator('..');
-    assert((await text(crf)).includes(bundle.hybrid.adopted ? 'adopted' : 'rejected') && await crf.locator('tr.fn-selected-row').count() === 1, 'CRF card shows the verdict and one selected setting');
+    assert(await page.getByRole('heading', { name: 'Does CRF refinement help?' }).count() === 0, 'Results has no CRF card');
     const runIds = await page.locator('#fn-metric-run option').evaluateAll(o => o.map(x => x.value));
     assert(runIds.length === uniform.runs.length, 'Run inspector lists every run');
     await page.locator('#fn-metric-run').selectOption(runIds[0]);
@@ -196,6 +196,7 @@ async (page) => {
     await page.getByRole('button', { name: '100% labels', exact: true }).click();
     await page.locator('#fn-overlay').uncheck();
     await page.waitForFunction(width => [...document.querySelectorAll('canvas[data-mask-kind]')].every(c => c.width === width), chosen.geometry.width);
+    assert(bundle.protocol.methods.join() === 'rf,unet' && uniform.runs.every(r => r.method !== 'hybrid'), 'The exports hold only the forest and the U-Net');
     assert(await page.locator('canvas[data-mask-kind]').count() === 1 + bundle.protocol.methods.length, 'Every method prediction canvas renders');
     await page.locator('#fn-overlay').check();
     const truthPanel = page.locator('.fn-comparison .fn-zoom').nth(1);

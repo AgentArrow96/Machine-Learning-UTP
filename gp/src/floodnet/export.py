@@ -8,15 +8,14 @@ from pathlib import PurePosixPath
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from .common import CLASSES, COLOURS, ProjectError, digest, inside, log, now, read_json, sha256, write_json
+from .common import CLASSES, COLOURS, ProjectError, inside, log, now, read_json, sha256, write_json
 from .data import Store, crop
 from .evaluation import final_runs, subset_metrics
 from .features import feature_key
-from .hybrid import hybrid_runs
 
 SCHEMA_VERSION = 3
-METHODS = ("rf", "unet", "hybrid")
-METHOD_NAMES = {"rf": "SLIC + RF", "unet": "U-Net", "hybrid": "U-Net + CRF"}
+METHODS = ("rf", "unet")
+METHOD_NAMES = {"rf": "SLIC + RF", "unet": "U-Net"}
 
 LIMITATIONS = [
     "This is a research prototype using one event/region, not an operational disaster-response service.",
@@ -28,8 +27,6 @@ LIMITATIONS = [
     "Most official test frames, and nearly all test frames containing flooded targets, share ground with a training "
     "frame (verified by keypoint matching). The test split therefore mostly measures performance on areas already "
     "seen in training, not on a new flood area.",
-    "The hybrid's DenseCRF settings were chosen on validation from a small pre-set grid (six spatial/colour pairs). "
-    "The best setting lay at the edge of that grid; finer settings were not tried, to keep tuning minimal.",
 ]
 
 STRATA_FIELDS = ("flooded_miou", "building_iou", "road_iou")
@@ -82,43 +79,6 @@ def summarise(runs, seeds):
                             "clean": stats([b["clean_metrics"]["flooded_miou"] - a["clean_metrics"]["flooded_miou"]
                                             for a, b in zip(groups[25], groups[100])])})
     return summary, effects
-
-
-def crf_effects(runs, seeds):
-    """Seed-matched change from each U-Net run to the hybrid that refines it (methodology section 5)."""
-    effects = []
-    for budget in (25, 100):
-        pairs = []
-        for seed in sorted(seeds):
-            unet = next((r for r in runs if r["method"] == "unet" and r["budget"] == budget and r["seed"] == seed), None)
-            hybrid = next((r for r in runs if r["method"] == "hybrid" and r["budget"] == budget and r["seed"] == seed), None)
-            if unet and hybrid:
-                pairs.append((unet, hybrid))
-        if len(pairs) != len(seeds):
-            continue
-        change = lambda key: stats([flat_metrics(h["metrics"])[key] - flat_metrics(u["metrics"])[key] for u, h in pairs])
-        effects.append({"budget": budget, "seeds": sorted(seeds),
-                        "full": {key: change(key) for key in ("flooded_miou", "miou", "building_iou", "road_iou",
-                                                              "building_recall", "road_recall")},
-                        **({f"overlap_{stratum}": stats([h["overlap_strata"][stratum]["flooded_miou"] - u["overlap_strata"][stratum]["flooded_miou"]
-                                                         for u, h in pairs]) for stratum in ("low", "high")}
-                           if all(u.get("overlap_strata") and h.get("overlap_strata") for u, h in pairs) else {})})
-    return effects
-
-
-def tuning_section(selection):
-    rows = []
-    for round_ in selection["rounds"]:
-        for index, params in enumerate(round_["settings"]):
-            gains = [item["gain"][index] for item in round_["per_run"].values()]
-            rows.append({"round": round_["name"], "params": params, "mean_gain": float(np.mean(gains)),
-                         "min_gain": float(np.min(gains)), "max_gain": float(np.max(gains)),
-                         "per_run": {run_id: item["gain"][index] for run_id, item in round_["per_run"].items()},
-                         "selected": params == selection["selected"]})
-    return {"backend": selection["backend"], "rule": selection["rule"], "selected": selection["selected"],
-            "selected_mean_gain": selection["selected_mean_gain"], "adopted": selection["adopted"],
-            "grid": rows, "tuning_seconds": selection["elapsed_seconds"],
-            "unet_validation": {run_id: item["unet_flooded_miou"] for run_id, item in selection["rounds"][0]["per_run"].items()}}
 
 
 def representatives(samples, count=6):
@@ -288,15 +248,15 @@ def export_web(cfg):
     web.mkdir(parents=True, exist_ok=True)
     seeds = cfg["train_seeds"]
     primary = seeds[0]
-    expected = final_runs(cfg) + hybrid_runs(cfg)
+    expected = final_runs(cfg)
     bundle = {"schema_version": SCHEMA_VERSION, "exported_at": now(), "status": "incomplete", "title": "FloodNet / Infrastructure in focus",
               "classes": [{"id": i, "name": name, "colour": COLOURS[i]} for i, name in enumerate(CLASSES)],
               "protocol": {"subset_seed": cfg["subset_seed"], "train_seeds": seeds, "explorer_seed": primary, "size": cfg["size"],
                            "budgets": [25, 100], "ignore_index": 255, "expected_runs": len(expected), "methods": list(METHODS),
-                           "trained_runs": len(final_runs(cfg)), "hybrid_runs": len(hybrid_runs(cfg)),
+                           "trained_runs": len(final_runs(cfg)),
                            "rf_region_sampling": cfg["rf"]["region_sampling"], "rf_max_regions": cfg["rf"]["max_regions"],
                            "primary_metric": "Mean of flooded-building and flooded-road IoU from pooled split confusion counts"},
-              "dataset": None, "runs": [], "summary": [], "budget_effects": [], "crf_effects": [], "hybrid": None,
+              "dataset": None, "runs": [], "summary": [], "budget_effects": [],
               "explorer_runs": [], "samples": [],
               "representatives": [], "limitations": LIMITATIONS, "reproducibility": None,
               "sources": [{"title": "FloodNet official dataset", "url": "https://github.com/BinaLab/FloodNet-Supervised_v1.0"},
@@ -332,18 +292,7 @@ def export_web(cfg):
     frozen = read_json(frozen_path) if frozen_path.exists() else None
     if frozen and overlap and frozen.get("overlap_identity") != overlap["identity"]:
         raise ProjectError("Frozen experiment used a different overlap analysis")
-    hybrid_frozen_path = inside("runs/hybrid_experiment.json")
-    hybrid_frozen = read_json(hybrid_frozen_path) if hybrid_frozen_path.exists() else None
-    if hybrid_frozen and (not frozen or hybrid_frozen["base_experiment_identity"] != frozen["identity"]):
-        raise ProjectError("The hybrid freeze refers to a different 12-run experiment")
-    export_id = (digest({"base": frozen["identity"], "hybrid": hybrid_frozen["identity"]}) if hybrid_frozen
-                 else frozen["identity"] if frozen else store.manifest["identity"])[:16]
-    selection_path = inside("runs/hybrid_selection.json")
-    if selection_path.exists():
-        selection = read_json(selection_path)
-        if hybrid_frozen and selection["identity"] != hybrid_frozen["selection_identity"]:
-            raise ProjectError("CRF selection changed after the hybrid freeze")
-        bundle["hybrid"] = tuning_section(selection)
+    export_id = (frozen["identity"] if frozen else store.manifest["identity"])[:16]
     assets = web / f"data/exports/{export_id}"
     images = assets / "images"
     images.mkdir(parents=True, exist_ok=True)
@@ -358,8 +307,7 @@ def export_web(cfg):
             bundle["missing_runs"].append(directory.name)
             continue
         result, run = read_json(result_path), read_json(directory / "run.json")
-        freeze = hybrid_frozen if method == "hybrid" else frozen
-        if not freeze or result["experiment_identity"] != freeze["identity"] or result["run_identity"] != run["identity"] or result["run_type"] != "final":
+        if not frozen or result["experiment_identity"] != frozen["identity"] or result["run_identity"] != run["identity"] or result["run_type"] != "final":
             raise ProjectError("Unfrozen or incompatible test result cannot be exported")
         if result["image_count"] != audit["counts"]["test"] or result["checkpoint_sha256"] != run["checkpoint_sha256"]:
             raise ProjectError("Incomplete or stale test evaluation")
@@ -376,15 +324,12 @@ def export_web(cfg):
                       "device": run.get("gpu", "CPU"), "precision": run.get("precision"), "identity": run["identity"],
                       "checkpoint_sha256": run["checkpoint_sha256"], "epochs": run.get("epochs"), "best_epoch": run.get("best_epoch"),
                       "region_count": run.get("region_count"), "region_class_counts": run.get("region_class_counts"),
-                      "crf": run.get("crf"), "base_run_id": run.get("base_run", {}).get("run_id"),
                       "history": slim_history(read_json(directory / "history.json")) if (directory / "history.json").exists() else []}
         bundle["runs"].append(public_run)
         loaded.append((public_run, result, run))
     if loaded:
         first = loaded[0][2]
-        hybrid_run = next((run for _, _, run in loaded if run["identity"]["method"] == "hybrid"), None)
-        bundle["reproducibility"] = {"versions": hybrid_run["versions"] if hybrid_run else first["versions"], "config": first["config"],
-                                     "crf": hybrid_run["crf"] if hybrid_run else None}
+        bundle["reproducibility"] = {"versions": first["versions"], "config": first["config"]}
     explorer = [(public_run, result) for public_run, result, _ in loaded if public_run["seed"] == primary]
     bundle["explorer_runs"] = [public_run["id"] for public_run, _ in explorer]
     per_image_rows = {public_run["id"]: {item["id"]: item for item in result["per_image"]} for public_run, result, _ in loaded}
@@ -415,15 +360,11 @@ def export_web(cfg):
         del public_run["_predictions"]
     bundle["representatives"] = representatives(bundle["samples"])
     bundle["summary"], bundle["budget_effects"] = summarise(bundle["runs"], seeds)
-    bundle["crf_effects"] = crf_effects(bundle["runs"], seeds)
     if len(bundle["runs"]) == len(expected) and overlap:
         bundle["status"] = "complete"
         bundle["experiment_identity"] = frozen["identity"]
-        bundle["hybrid_experiment_identity"] = hybrid_frozen["identity"]
         write_json(assets / "experiment.json", frozen)
-        write_json(assets / "hybrid_experiment.json", hybrid_frozen)
         bundle["downloads"]["experiment"] = (assets / "experiment.json").relative_to(web).as_posix()
-        bundle["downloads"]["hybrid_experiment"] = (assets / "hybrid_experiment.json").relative_to(web).as_posix()
         explorer_runs = [public_run for public_run, _ in explorer]
         figures = []
         for sample in bundle["samples"]:
@@ -466,16 +407,6 @@ def export_web(cfg):
     write_csv(assets / "per_image.csv", per_rows, ["image_id", "run_id", "seed", "flooded_miou", "miou", "building_iou", "road_iou", "train_overlap"])
     write_json(assets / "budgets.json", store.manifest["budgets"])
     downloads = [("aggregate", "aggregate.csv"), ("summary", "summary.csv"), ("per_image", "per_image.csv"), ("budgets", "budgets.json")]
-    if bundle["hybrid"]:
-        tuning_runs = sorted(bundle["hybrid"]["grid"][0]["per_run"])
-        write_csv(assets / "crf_tuning.csv",
-                  [{"round": row["round"], "bilateral_sxy": row["params"]["bilateral"]["sxy"], "bilateral_srgb": row["params"]["bilateral"]["srgb"],
-                    "bilateral_compat": row["params"]["bilateral"]["compat"], "mean_validation_gain": row["mean_gain"],
-                    "selected": row["selected"], **{f"gain_{run_id}": row["per_run"][run_id] for run_id in tuning_runs}}
-                   for row in bundle["hybrid"]["grid"]],
-                  ["round", "bilateral_sxy", "bilateral_srgb", "bilateral_compat", "mean_validation_gain", "selected",
-                   *[f"gain_{run_id}" for run_id in tuning_runs]])
-        downloads.append(("crf_tuning", "crf_tuning.csv"))
     if overlap:
         write_csv(assets / "overlap_pairs.csv",
                   [{k: p[k] for k in ("eval_id", "train_id", "matches", "inliers", "inlier_ratio", "overlap")} | {"sources": " ".join(p["sources"])}

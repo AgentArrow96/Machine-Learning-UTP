@@ -11,7 +11,7 @@ def doctor(cfg, gpu_smoke=False):
     report = {"created_at": now(), "python": sys.version, "executable": sys.executable, "root": str(ROOT),
               "ram_bytes": psutil.virtual_memory().total, "free_disk_bytes": shutil.disk_usage(ROOT).free,
               "logical_cpus": psutil.cpu_count(), "dependencies": {}, "gpu_smoke": None}
-    for name in ("torch", "torchvision", "segmentation-models-pytorch", "scikit-image", "scikit-learn", "numpy", "Pillow", "pydensecrf2", "pytest"):
+    for name in ("torch", "torchvision", "segmentation-models-pytorch", "scikit-image", "scikit-learn", "numpy", "Pillow", "pytest"):
         try:
             report["dependencies"][name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:

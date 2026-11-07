@@ -1,4 +1,8 @@
-"""Figures and numbers for the final report (Before tab, SLIC + RF and U-Net only). Reads frozen exports; changes no run."""
+"""Figures and numbers for the final report (SLIC + RF and U-Net). Reads the frozen exports and runs; changes no run.
+
+Reads web/data/results.json, plus web/data/uniform.json when present (the exported bundle of the report's retrained
+forests next to the frozen U-Nets; without it the runs in results.json are used). Writes report/numbers.json,
+report/figures/ and the app's Presentation-mode files (web/data/presentation.json, web/data/presentation/)."""
 import os
 import shutil
 import subprocess
@@ -60,12 +64,12 @@ def collect(uniform, first):
                 "inference_ms": stat([r["timing"]["median_seconds"] * 1000 for r in rows]),
                 "peak_gpu_mib": max((r["peak_gpu_allocated_bytes"] or 0) for r in rows) / 2 ** 20,
                 "epochs": [r["epochs"] for r in rows], "best_epoch": [r["best_epoch"] for r in rows],
-                "val_minority": stat([r["val_flooded_miou"] for r in rows]),
+                "val_minority": stat([read_json(inside(f"runs/{r['id']}/evaluation_val.json"))["metrics"]["flooded_miou"] for r in rows]),
                 "class_weights": rows[0]["class_weights"], "region_class_counts": rows[0]["region_class_counts"],
                 "overlap_low": s["overlap_low"]["flooded_miou"]["mean"], "overlap_high": s["overlap_high"]["flooded_miou"]["mean"]}
         keys = out["configs"][f"{method}_25"]["metrics"]
         out["budget_effect"][method] = {k: stat(np.subtract(out["configs"][f"{method}_100"]["metrics"][k]["values"], keys[k]["values"])) for k in keys}
-    for budget in BUDGETS:
+    for budget in BUDGETS if uniform.get("comparisons") else ():
         per = [metrics(r["metrics"]["confusion_matrix"]) for r in runs(first, "rf", budget)]
         c = next(x for x in uniform["comparisons"] if x["budget"] == budget)
         out["first_version_rf"][str(budget)] = {"metrics": {k: stat([p[k] for p in per]) for k in per[0]}, "region_class_counts": runs(first, "rf", budget)[0]["region_class_counts"],
@@ -82,13 +86,42 @@ def collect(uniform, first):
     return out
 
 
+ORIGINAL = ["background", "building flooded", "building non-flooded", "road flooded", "road non-flooded", "water", "tree", "vehicle", "pool", "grass"]
+
+
+def masks10(record, size):
+    """The original 10-class annotation, resized and padded exactly like the 3-class mask."""
+    from floodnet.common import ProjectError, sha256
+    from floodnet.data import mask_array
+    if sha256(record["mask"]) != record["mask_sha256"]:
+        raise ProjectError(f"Original annotation changed since audit: {record['id']}")
+    g = record["geometry"]
+    labels = np.asarray(Image.fromarray(mask_array(inside(record["mask"]))).resize((g["width"], g["height"]), Image.Resampling.NEAREST))
+    out = np.full((size, size), 255, dtype=np.uint8)
+    out[g["top"]:g["top"] + g["height"], g["left"]:g["left"] + g["width"]] = labels
+    return out
+
+
+def error_breakdown(directory, store, layouts):
+    """Where a run's false alarms land among the original classes, on the test split."""
+    result = read_json(directory / "evaluation_test.json")
+    predictions = np.load(inside(result["predictions"]), mmap_mode="r")
+    position = {i["id"]: i["prediction_index"] for i in result["per_image"]}
+    fp = {1: np.zeros(10, np.int64), 2: np.zeros(10, np.int64)}
+    for record in store.select("test"):
+        _, truth = store.get(record)
+        p = np.asarray(predictions[position[record["id"]]])
+        valid = truth != 255
+        for c in (1, 2):
+            fp[c] += np.bincount(np.minimum(layouts[record["id"]][(p == c) & (truth != c) & valid], 9), minlength=10)
+    return {name: {ORIGINAL[k]: float(v / max(fp[c].sum(), 1)) for k, v in enumerate(fp[c]) if v} for c, name in ((1, "building"), (2, "road"))}
+
+
 def errors(numbers, uniform):
     """Share of each model's flooded false alarms per original class, mean over the 3 seeds."""
     from floodnet.data import Store
-    from floodnet.gan_common import masks10_for
-    from floodnet.improve import error_breakdown
     store = Store(config())
-    layouts = {r["id"]: masks10_for(r, 256) for r in store.select("test")}
+    layouts = {r["id"]: masks10(r, 256) for r in store.select("test")}
     out = {}
     for method in METHODS:
         for budget in BUDGETS:
@@ -99,6 +132,9 @@ def errors(numbers, uniform):
 
 
 def proposal_figures():
+    """Figures reused from the group's proposal PDF (kept outside the repository); skipped when it is absent."""
+    if not inside(PROPOSAL).exists():
+        return False
     target = FIG / "proposal"
     if target.exists():
         shutil.rmtree(target)
@@ -111,6 +147,7 @@ def proposal_figures():
             path.rename(target / f"{names[index]}.png")
         else:
             path.unlink()
+    return True
 
 
 def save(fig, name):
@@ -234,19 +271,39 @@ def web_assets(numbers):
     write_json(inside("web/data/presentation.json"), {"false_alarms": numbers["false_alarms"], "feature_importance": numbers["feature_importance"]})
     sources = {"samples": FIG / "proposal/fig_samples.png", "rf_pipeline": FIG / "proposal/fig_rf_pipeline.png", "unet": FIG / "proposal/fig_unet.png", "scenes": FIG / "test_scenes.png"}
     for name, source in sources.items():
+        if not source.exists():
+            continue
         image = Image.open(source).convert("RGB")
         image.thumbnail((1500, 1500))
         image.save(target / f"{name}.webp", quality=88)
 
 
+def from_results(results):
+    """The bundle shape this script reads, built from results.json alone (no first-version comparison)."""
+    samples = {s["id"]: {"predictions": s["predictions"], "metrics": s["metrics"]} for s in results["samples"]}
+    return {"runs": results["runs"], "summary": results["summary"], "samples": samples, "comparisons": []}
+
+
+def importances(bundle, seed):
+    """Forest feature importances of the explorer-seed runs, from the saved models."""
+    import joblib
+    from floodnet.features import FEATURE_NAMES
+    out = {}
+    for budget in BUDGETS:
+        run = next(r for r in bundle["runs"] if r["method"] == "rf" and r["budget"] == budget and r["seed"] == seed)
+        model = joblib.load(inside(f"runs/{run['id']}/model.joblib"))
+        out[str(budget)] = sorted(zip(FEATURE_NAMES, np.round(model.feature_importances_, 5).tolist()), key=lambda x: -x[1])
+    return out
+
+
 def main():
     FIG.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10, "axes.spines.top": False, "axes.spines.right": False, "axes.titleweight": "bold"})
-    uniform, results = read_json("web/data/uniform.json"), read_json("web/data/results.json")
+    results = read_json("web/data/results.json")
+    uniform = read_json("web/data/uniform.json") if inside("web/data/uniform.json").exists() else from_results(results)
     numbers = collect(uniform, results)
     errors(numbers, uniform)
-    walk = read_json("web/data/walkthrough.json")
-    numbers["feature_importance"] = {b: sorted(zip(walk["feature_names"], v), key=lambda x: -x[1]) for b, v in walk["feature_importances"].items()}
+    numbers["feature_importance"] = importances(uniform, results["protocol"]["explorer_seed"])
     numbers["dataset"] = {k: results["dataset"][k] for k in ("counts", "budget_counts", "exif_rotated_images", "preprocessing_seconds", "feature_preparation_seconds")}
     numbers["preprocessing"] = {k: read_json("web/data/preprocessing.json")["steps"][k] for k in ("pairing", "budgets", "resolution", "normalisation")}
     numbers["duplicates"] = {k: v for k, v in read_json("web/data/preprocessing.json")["steps"]["duplicates"].items() if k != "examples"}

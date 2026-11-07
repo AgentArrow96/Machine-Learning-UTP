@@ -4,30 +4,14 @@ import numpy as np
 import pytest
 
 from floodnet.common import ROOT, ProjectError
-from floodnet.hybrid import refine_valid
 from floodnet.visuals import (
     check_aspect,
-    crf_iterations,
     decode_regions,
     encode_regions,
     pca_rgb,
     scaled_window,
     walk_urls,
 )
-
-PARAMS = {"iterations": 5, "gaussian": {"sxy": 3, "compat": 3}, "bilateral": {"sxy": 20, "srgb": 5, "compat": 10}}
-
-
-def test_stepped_crf_equals_densecrf_inference():
-    rng = np.random.default_rng(3)
-    probs = rng.random((3, 24, 32)).astype(np.float32)
-    probs /= probs.sum(0)
-    rgb = rng.integers(0, 256, (24, 32, 3), dtype=np.uint8)
-    steps = crf_iterations(probs, rgb, PARAMS)
-    assert len(steps) == PARAMS["iterations"] + 1
-    assert np.array_equal(steps[0], probs.argmax(0))
-    assert np.array_equal(steps[-1], refine_valid(probs, rgb, PARAMS))
-
 
 def test_pca_colours_are_deterministic():
     rng = np.random.default_rng(7)
@@ -66,5 +50,5 @@ def test_exported_walkthrough_is_portable_and_verified():
     urls = list(walk_urls(walk))
     assert urls and all((ROOT / "web" / u).is_file() for u in urls)
     checks = [m["check"] for e in walk["examples"] for b in e["budgets"].values() for m in b.values()]
-    assert len(checks) == len(walk["examples"]) * 2 * 3
+    assert len(checks) == len(walk["examples"]) * 2 * 2
     assert all(c["matches_frozen_prediction"] and c["differing"] == 0 for c in checks)

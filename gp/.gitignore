@@ -10,3 +10,34 @@ __pycache__/
 .playwright/
 .playwright-cli/
 /web/data/hires/
+
+# Studies beyond the final report (CRF hybrid, GAN/imbalance, improvement and undersampling studies, audits).
+# They stay on this machine only; the full project is in the private snapshot.
+/audit/
+/src/floodnet/gan_common.py
+/src/floodnet/gan_oasis.py
+/src/floodnet/gan_spade.py
+/src/floodnet/rgan.py
+/src/floodnet/hybrid.py
+/src/floodnet/imbalance.py
+/src/floodnet/improve.py
+/src/floodnet/undersample.py
+/configs/hybrid.json
+/configs/imbalance.json
+/configs/improve.json
+/configs/undersample.json
+/docs/audit.md
+/docs/imbalance.md
+/docs/improve.md
+/docs/results.md
+/docs/undersample.md
+/scripts/make_figures.py
+/scripts/run_imbalance.py
+/scripts/run_improve.py
+/scripts/run_undersample.py
+/scripts/verify_delivery.py
+/tests/test_after_export.py
+/tests/test_hybrid.py
+/tests/test_imbalance.py
+/tests/test_improve.py
+/tests/test_undersample.py

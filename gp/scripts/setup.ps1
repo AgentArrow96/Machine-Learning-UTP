@@ -19,9 +19,9 @@ if (-not $SkipTorch) {
     & $pythonExe -m pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
     if ($LASTEXITCODE -ne 0) { throw 'CUDA PyTorch installation failed.' }
 }
-& $pythonExe -m pip install -e '.[dev,crf]'
+& $pythonExe -m pip install -e '.[dev]'
 if ($LASTEXITCODE -ne 0) { throw 'Project dependencies installation failed.' }
 $locked = & $pythonExe -m pip freeze --exclude-editable
-@('--extra-index-url https://download.pytorch.org/whl/cu128') + $locked + @('-e .[crf]') | Set-Content -Encoding utf8 -LiteralPath requirements.lock.txt
+@('--extra-index-url https://download.pytorch.org/whl/cu128') + $locked + @('-e .') | Set-Content -Encoding utf8 -LiteralPath requirements.lock.txt
 & $pythonExe -m floodnet doctor --gpu-smoke
 if ($LASTEXITCODE -ne 0) { throw 'CUDA verification failed. U-Net will not fall back to CPU.' }

@@ -29,16 +29,8 @@ def main():
                    ["evaluate", "--run", f"runs/{model}_{budget}_s{seed}", "--split", "val"]]
     for model, budget, seed in runs:
         stages.append(["evaluate", "--run", f"runs/{model}_{budget}_s{seed}", "--split", "test", "--final"])
-    # Hybrid U-Net + DenseCRF: no training. Tune on validation, record, validate, then its own frozen test.
-    stages.append(["tune-crf"])
-    hybrids = [(budget, seed) for model, budget, seed in runs if model == "unet"]
-    for budget, seed in hybrids:
-        stages += [["refine", "--budget", str(budget), "--seed", str(seed)],
-                   ["evaluate", "--run", f"runs/hybrid_{budget}_s{seed}", "--split", "val"]]
-    for budget, seed in hybrids:
-        stages.append(["evaluate", "--run", f"runs/hybrid_{budget}_s{seed}", "--split", "test", "--final"])
     stages.append(["export-web"])
-    stages.append(["report-figures"])
+    stages.append(["report-assets"])
     status = {"started_at": now(), "status": "running", "completed": []}
     logs = PROJECT / "runs/pipeline.log"
     logs.parent.mkdir(parents=True, exist_ok=True)
@@ -46,7 +38,7 @@ def main():
         for stage in stages:
             status["active"] = stage
             write_json("runs/pipeline_status.json", status)
-            command = ([sys.executable, "-u", str(PROJECT / "scripts/make_figures.py")] if stage == ["report-figures"]
+            command = ([sys.executable, "-u", str(PROJECT / "scripts/make_report_assets.py")] if stage == ["report-assets"]
                        else [sys.executable, "-u", "-m", "floodnet", *stage])
             message = f"\n[{now()}] STAGE {' '.join(stage)}\n"
             print(message, flush=True); log.write(message)

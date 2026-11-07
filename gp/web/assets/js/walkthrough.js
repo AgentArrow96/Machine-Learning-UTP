@@ -1,17 +1,12 @@
 'use strict';
 
 const FN_WALKTHROUGH = {
-    kernelTex(sxy, srgb) {
-        return FN_MATH.tex(String.raw`w=\exp\!\left(-\frac{d^2}{2\cdot${sxy}^2}-\frac{\lVert\Delta c\rVert^2}{2\cdot${srgb}^2}\right)`,
-            { plain: `exp(−d²/2·${sxy}² − Δcolour²/2·${srgb}²)` });
-    },
-
     data: null,
     failed: null,
-    state: { example: null, tab: 'prep', steps: { prep: 0, rf: 0, unet: 0, crf: 0 }, region: null, iteration: null, kernel: null, readout: null },
+    state: { example: null, tab: 'prep', steps: { prep: 0, rf: 0, unet: 0 }, region: null, readout: null },
     pixels: new Map(),
 
-    TABS: [['prep', 'Preparation'], ['rf', 'SLIC + Random Forest'], ['unet', 'U-Net'], ['crf', 'U-Net + CRF']],
+    TABS: [['prep', 'Preparation'], ['rf', 'SLIC + Random Forest'], ['unet', 'U-Net']],
 
     page() {
         return header('walkthrough', 'Step by step, on a real test image.', 'Pick a held-out scene and follow what each approach does to it, from the raw photo to the final mask. Every picture and number is recomputed from the frozen models.')
@@ -48,7 +43,7 @@ const FN_WALKTHROUGH = {
         }
         const s = self.state;
         const e = self.example();
-        if (s.example !== e.id) Object.assign(s, { example: e.id, region: null, kernel: null, iteration: null, readout: null });
+        if (s.example !== e.id) Object.assign(s, { example: e.id, region: null, readout: null });
         const steps = self.steps(e)[s.tab];
         s.steps[s.tab] = Math.min(s.steps[s.tab], steps.length - 1);
         const step = steps[s.steps[s.tab]];
@@ -68,14 +63,14 @@ const FN_WALKTHROUGH = {
             + `<div class="fn-walk-head"><span class="fn-eyebrow">Step ${index + 1} of ${steps.length}</span><h2>${esc(step.title)}</h2></div>`
             + `<div class="fn-walk-body"><div class="fn-walk-figures ${(step.figures.match(/<figure/g) || []).length > 1 ? 'two' : ''}">${step.figures}</div><div class="fn-walk-text">${step.text}</div></div>`
             + `<div class="fn-walk-nav"><button type="button" class="fn-btn" data-walk-move="-1" ${index === 0 ? 'disabled' : ''}>← Previous step</button>`
-            + `<button type="button" class="fn-btn fn-btn-strong" data-walk-move="1">${index === steps.length - 1 ? (s.tab === 'crf' ? 'Back to preparation' : 'Next method →') : 'Next step →'}</button></div></section>`
+            + `<button type="button" class="fn-btn fn-btn-strong" data-walk-move="1">${index === steps.length - 1 ? (s.tab === 'unet' ? 'Back to preparation' : 'Next method →') : 'Next step →'}</button></div></section>`
             + self.verification(e);
         step.draw?.();
     },
 
     verification(e) {
         const b = e.budgets[String(state.budget)];
-        const rows = [['rf', b.rf], ['unet', b.unet], ['hybrid', b.hybrid]].map(([method, part]) => `<li><span class="fn-pill ${method}">${esc(METHOD[method].short)}</span> `
+        const rows = [['rf', b.rf], ['unet', b.unet]].map(([method, part]) => `<li><span class="fn-pill ${method}">${esc(METHOD[method].short)}</span> `
             + `${part.check.matches_frozen_prediction ? '✓' : '✗'} final mask equals the frozen test prediction of <code>${esc(part.run_id.split('/').pop())}</code>${part.run_id.includes('/') ? ' (retrained forest)' : ''}: `
             + `${num(part.check.pixels - part.check.differing)} of ${num(part.check.pixels)} pixels identical · flooded IoU on this image ${pct(part.scores.flooded_miou)}</li>`).join('');
         return card('Is this what the models really did?', `<ul class="fn-walk-checks">${rows}</ul><p class="fn-figure-note">Checked when the walkthrough was exported: it reloads each frozen checkpoint (hash-verified), reruns the steps above and fails unless the result matches the saved test predictions pixel for pixel. The preparation step was also rerun from the raw photo and annotation and reproduced the cached 256-px arrays exactly.</p>`);
@@ -189,9 +184,6 @@ const FN_WALKTHROUGH = {
             .replace(/^lbp_(\d)$/, (m, k) => `texture bin ${k}`).replace(/ (r|g|b)$/, (m, c) => ` ${{ r: 'red', g: 'green', b: 'blue' }[c]}`).replace(/ (h|s|v)$/, (m, c) => ` ${{ h: 'hue', s: 'saturation', v: 'brightness' }[c]}`);
         const importance = d.feature_importances[String(state.budget)];
         const ranked = importance.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]);
-        const crf = d.crf;
-        const iteration = s.iteration ?? crf.iterations;
-        const lowConfidence = self.lowConfidence;
         const regionButtons = [0, 1, 2].map(c => {
             const best = self.largestRegion(e, c);
             return best == null ? '' : `<button type="button" class="fn-btn" data-walk-region="${best}">Largest ${esc(data.classes[c].name.toLowerCase())} region</button>`;
@@ -325,46 +317,6 @@ const FN_WALKTHROUGH = {
                     text: `<p>Each pixel takes the class with the highest probability. No regions are involved, so boundaries can follow roofs and road edges pixel by pixel.</p><p>${scoreLine(B.unet)}</p>`,
                     draw: () => Promise.all([self.drawLabels('fn-walk-unet', B.unet.mask, S.rgb), self.drawLabels('fn-walk-unet-truth', S.truth, S.rgb)])
                 }
-            ],
-            crf: [
-                {
-                    title: 'Start from the U-Net\'s probabilities',
-                    figures: self.canvas('fn-walk-uncertain', 'U-Net uncertainty: darker = less sure', `${label}: U-Net uncertainty`),
-                    text: `<p>The hybrid trains nothing new. It takes the same U-Net's probabilities and turns each into a cost, ${FN_MATH.tex(String.raw`\psi_u(y_i)=-\log p_i(y_i)`, { plain: '−log p' })}: cheap for confident labels, expensive for unlikely ones.</p>`
-                        + `<p id="fn-walk-uncertain-text">${lowConfidence == null ? 'Counting uncertain pixels…' : `${pct(lowConfidence)} of this image's pixels have a top probability below 90%. Those are where neighbours can change the label.`}</p>`,
-                    draw: () => self.drawUncertainty(e)
-                },
-                {
-                    title: 'Connect every pixel to similar neighbours',
-                    figures: self.live('fn-walk-kernel', 'Appearance-kernel weights from the selected pixel (bright = strong pull)', `${label}: CRF appearance kernel`, 'Click any pixel to move the centre'),
-                    text: `<p>The CRF adds two kinds of agreement costs between pixels (frozen settings, chosen on validation):</p>`
-                        + `<dl class="fn-definition-list"><dt>Spatial</dt><dd>neighbours within about ${crf.gaussian.sxy} px should agree (weight ${crf.gaussian.compat}); removes isolated specks</dd>`
-                        + `<dt>Appearance</dt><dd>pixels within about ${crf.bilateral.sxy} px <em>and</em> within about ${crf.bilateral.srgb} colour levels should agree (weight ${crf.bilateral.compat}); snaps labels to colour edges</dd></dl>`
-                        + `<p id="fn-walk-kernel-text">The picture shows the appearance weight ${self.kernelTex(crf.bilateral.sxy, crf.bilateral.srgb)} from the chosen pixel, computed here in your browser.</p>`,
-                    draw: () => self.drawKernel(e)
-                },
-                {
-                    title: 'Mean-field iterations',
-                    figures: self.canvas('fn-walk-iteration', `Labels after iteration ${iteration} (red outline = differs from the U-Net)`, `${label}: CRF iteration ${iteration}`)
-                        + `<label class="fn-walk-slider">Iteration <input type="range" id="fn-walk-iteration-input" min="0" max="${crf.iterations}" step="1" value="${iteration}"><output>${iteration} of ${crf.iterations}</output></label>`,
-                    text: `<p>Each iteration, every pixel re-weighs its label using its own cost plus the current labels of the pixels it is connected to. ${crf.iterations} iterations are used.</p>`
-                        + `<p>After iteration <strong>${iteration}</strong>: ${num(B.hybrid.changed_from_previous[iteration])} pixels changed since the previous iteration; <strong>${num(B.hybrid.changed_from_unet[iteration])}</strong> now differ from the U-Net.</p>`
-                        + chartBlock('Pixels changed per iteration', options => FN_CHARTS.lines([
-                            { label: 'Changed since previous iteration', colour: '#c2410c', values: B.hybrid.changed_from_previous },
-                            { label: 'Differ from the U-Net', colour: '#4f46e5', values: B.hybrid.changed_from_unet, dash: true }
-                        ], { compact: true, ...options, integer: true, xName: 'Iteration', xStart: 0, label: 'Pixels changed per mean-field iteration',
-                            points: [{ series: 1, index: crf.iterations, text: `${num(B.hybrid.changed_from_unet.at(-1))} px differ at the end` }] }), { heading: 'h3' }),
-                    draw: () => self.drawIteration(e, iteration)
-                },
-                {
-                    title: 'What the CRF fixed and what it broke',
-                    figures: self.canvas('fn-walk-change', 'Green = fixed, red = broken, grey = changed but still wrong', `${label}: CRF changes against the ground truth`)
-                        + self.canvas('fn-walk-hybrid', 'U-Net + CRF prediction', `${label}: U-Net + CRF prediction`)
-                        + `<div class="fn-legend"><span><i style="background:#059669"></i>Fixed (was wrong, now right)</span><span><i style="background:#b91c1c"></i>Broken (was right, now wrong)</span><span><i style="background:#64748b"></i>Changed, still wrong</span></div>`,
-                    text: `<p>Compared with the ground truth, the CRF <strong>fixed ${num(B.hybrid.fixed)}</strong> pixels and <strong>broke ${num(B.hybrid.broken)}</strong> on this image.</p>`
-                        + `<p>Flooded IoU: U-Net ${pct(B.unet.scores.flooded_miou)} → U-Net + CRF <strong>${pct(B.hybrid.scores.flooded_miou)}</strong> (${points(B.hybrid.scores.flooded_miou - B.unet.scores.flooded_miou)}). Across the whole test split the CRF's effect is on the Results page.</p>`,
-                    draw: () => Promise.all([self.drawChanges(e), self.drawLabels('fn-walk-hybrid', B.hybrid.mask, S.rgb)])
-                }
             ]
         };
     },
@@ -465,124 +417,6 @@ const FN_WALKTHROUGH = {
         };
     },
 
-    async drawUncertainty(e) {
-        const self = FN_WALKTHROUGH;
-        const probs = await self.imageData(e.budgets[String(state.budget)].unet.probabilities);
-        let low = 0;
-        self.paint('fn-walk-uncertain', probs.width, probs.height, out => {
-            for (let i = 0; i < out.length; i += 4) {
-                const top = Math.max(probs.data[i], probs.data[i + 1], probs.data[i + 2]) / 255;
-                if (top < .9) low++;
-                const v = 255 * Math.min(1, Math.max(0, (top - 1 / 3) / (2 / 3)));
-                out[i] = out[i + 1] = out[i + 2] = v;
-                out[i + 3] = 255;
-            }
-        });
-        self.lowConfidence = low / (probs.width * probs.height);
-        const text = $('#fn-walk-uncertain-text');
-        if (text) text.textContent = `${pct(self.lowConfidence)} of this image's pixels have a top probability below 90%. Those are where neighbours can change the label.`;
-    },
-
-    async drawKernel(e) {
-        const self = FN_WALKTHROUGH;
-        const photo = await self.imageData(e.shared.rgb);
-        const { sxy, srgb } = self.data.crf.bilateral;
-        const width = photo.width;
-        const height = photo.height;
-        if (!self.state.kernel) self.state.kernel = await self.defaultKernelPixel(e);
-        const { x: x0, y: y0 } = self.state.kernel;
-        const i0 = (y0 * width + x0) * 4;
-        let strong = 0;
-        let noticeable = 0;
-        self.paint('fn-walk-kernel', width, height, out => {
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const i = (y * width + x) * 4;
-                    const d2 = (x - x0) ** 2 + (y - y0) ** 2;
-                    let c2 = 0;
-                    for (let c = 0; c < 3; c++) c2 += (photo.data[i + c] - photo.data[i0 + c]) ** 2;
-                    const w = Math.exp(-d2 / (2 * sxy * sxy) - c2 / (2 * srgb * srgb));
-                    if (w > .1) strong++;
-                    if (w > .01) noticeable++;
-                    const shown = Math.sqrt(w);
-                    const marker = Math.abs(x - x0) + Math.abs(y - y0) <= 2 && (x === x0 || y === y0);
-                    for (let c = 0; c < 3; c++) out[i + c] = marker ? [225, 29, 72][c] : photo.data[i + c] * .42 * (1 - shown) + [251, 191, 36][c] * shown;
-                    out[i + 3] = 255;
-                }
-            }
-        });
-        const text = $('#fn-walk-kernel-text');
-        if (text) text.innerHTML = `From pixel (${x0}, ${y0}) (red cross): ${num(strong)} pixels have an appearance weight above 0.1 and ${num(noticeable)} above 0.01. Pixels of a different colour get almost no pull, even when they are close. Weight ${FN_WALKTHROUGH.kernelTex(sxy, srgb)}, computed here in your browser; brightness shows ${FN_MATH.tex(String.raw`\sqrt{w}`, { plain: '√weight' })} so weak pulls stay visible.`;
-    },
-
-    async defaultKernelPixel(e) {
-        const self = FN_WALKTHROUGH;
-        const b = e.budgets[String(state.budget)];
-        const [unet, hybrid, photo] = await Promise.all([self.imageData(b.unet.mask), self.imageData(b.hybrid.mask), self.imageData(e.shared.rgb)]);
-        const { sxy, srgb } = self.data.crf.bilateral;
-        const width = unet.width;
-        const height = unet.height;
-        const changed = [];
-        for (let k = 0; k < width * height; k++) if (unet.data[k * 4] !== hybrid.data[k * 4]) changed.push(k);
-        if (!changed.length) return { x: Math.floor(width / 2), y: Math.floor(height / 2) };
-        const sample = changed.filter((_, i) => i % Math.ceil(changed.length / 200) === 0);
-        const reach = 2 * sxy;
-        let best = sample[0];
-        let bestPull = -1;
-        for (const k of sample) {
-            const x0 = k % width;
-            const y0 = Math.floor(k / width);
-            let pull = 0;
-            for (let y = Math.max(0, y0 - reach); y < Math.min(height, y0 + reach); y += 2) {
-                for (let x = Math.max(0, x0 - reach); x < Math.min(width, x0 + reach); x += 2) {
-                    const i = (y * width + x) * 4;
-                    let c2 = 0;
-                    for (let c = 0; c < 3; c++) c2 += (photo.data[i + c] - photo.data[k * 4 + c]) ** 2;
-                    pull += Math.exp(-((x - x0) ** 2 + (y - y0) ** 2) / (2 * sxy * sxy) - c2 / (2 * srgb * srgb));
-                }
-            }
-            if (pull > bestPull) {
-                bestPull = pull;
-                best = k;
-            }
-        }
-        return { x: best % width, y: Math.floor(best / width) };
-    },
-
-    async drawIteration(e, iteration) {
-        const self = FN_WALKTHROUGH;
-        const b = e.budgets[String(state.budget)];
-        const [labels, base, photo] = await Promise.all([self.imageData(b.hybrid.iterations[iteration]), self.imageData(b.unet.mask), self.imageData(e.shared.rgb)]);
-        const palette = data.classes.map(c => self.rgbOf(c.colour));
-        const width = labels.width;
-        self.paint('fn-walk-iteration', width, labels.height, out => {
-            for (let k = 0; k < width * labels.height; k++) {
-                const i = k * 4;
-                const label = labels.data[i];
-                const differs = label !== base.data[i];
-                const a = label === 0 ? .1 : .62;
-                for (let c = 0; c < 3; c++) out[i + c] = differs ? [225, 29, 72][c] : photo.data[i + c] * (1 - a) + palette[label][c] * a;
-                out[i + 3] = 255;
-            }
-        });
-    },
-
-    async drawChanges(e) {
-        const self = FN_WALKTHROUGH;
-        const b = e.budgets[String(state.budget)];
-        const [truth, base, final, photo] = await Promise.all([self.imageData(e.shared.truth), self.imageData(b.unet.mask), self.imageData(b.hybrid.mask), self.imageData(e.shared.rgb)]);
-        self.paint('fn-walk-change', truth.width, truth.height, out => {
-            for (let i = 0; i < out.length; i += 4) {
-                const t = truth.data[i];
-                const before = base.data[i];
-                const after = final.data[i];
-                const colour = before === after ? null : after === t ? [5, 150, 105] : before === t ? [185, 28, 28] : [100, 116, 139];
-                for (let c = 0; c < 3; c++) out[i + c] = colour ? colour[c] : photo.data[i + c] * .45 + 140;
-                out[i + 3] = 255;
-            }
-        });
-    },
-
     move(delta) {
         const self = FN_WALKTHROUGH;
         const s = self.state;
@@ -644,9 +478,6 @@ document.addEventListener('click', event => {
                 $('#fn-walk-regions')?.focus();
             }
         });
-    } else if (target.id === 'fn-walk-kernel') {
-        self.state.kernel = self.pixelAt(target, event.clientX, event.clientY);
-        self.drawKernel(self.example());
     } else if (target.id === 'fn-walk-unet-building' || target.id === 'fn-walk-unet-road') {
         self.readout(target, event.clientX, event.clientY);
     }
@@ -655,13 +486,6 @@ document.addEventListener('click', event => {
 document.addEventListener('pointermove', event => {
     const id = event.target.id;
     if ((id === 'fn-walk-unet-building' || id === 'fn-walk-unet-road') && FN_WALKTHROUGH.data) FN_WALKTHROUGH.readout(event.target, event.clientX, event.clientY);
-});
-
-document.addEventListener('input', event => {
-    if (event.target.id !== 'fn-walk-iteration-input') return;
-    FN_WALKTHROUGH.state.iteration = Number(event.target.value);
-    FN_WALKTHROUGH.update();
-    $('#fn-walk-iteration-input')?.focus();
 });
 
 document.addEventListener('keydown', event => {

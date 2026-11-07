@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from PIL import Image
-from floodnet.common import ProjectError, read_json
+from floodnet.common import ProjectError
 from floodnet.data import audit, prepare, Store
 from floodnet.features import build_features
 from floodnet.training import train_rf
@@ -49,7 +49,7 @@ def test_fixture_pipeline_cache_reload_and_export(project):
         evaluate(cfg, path, "test")
     bundle = export_web(cfg)
     assert bundle["status"] == "incomplete" and not bundle["runs"]
-    assert len(bundle["samples"]) == 4 and len(bundle["missing_runs"]) == 3 * 2 * len(cfg["train_seeds"])
+    assert len(bundle["samples"]) == 4 and len(bundle["missing_runs"]) == 2 * 2 * len(cfg["train_seeds"])
     assert bundle["explorer_runs"] == [] and bundle["summary"] == []
     validate_bundle(bundle, root / "web")
     bundle["samples"][0]["rgb"] = "../escape.png"

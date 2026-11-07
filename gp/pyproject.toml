@@ -16,8 +16,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10"]
-# Hybrid U-Net + DenseCRF. No Windows wheels exist: pip builds it from source (needs MSVC Build Tools).
-crf = ["pydensecrf2==1.1"]
 
 [project.scripts]
 floodnet = "floodnet.cli:main"

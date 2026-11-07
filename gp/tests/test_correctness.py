@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from floodnet.common import ProjectError, digest, inside, read_json
+from floodnet.common import ProjectError, inside
 from floodnet.acquire import safe_members
 from floodnet.data import remap, resize_pair, subset_ids, mask_array, preprocessing_key
 from floodnet.metrics import confusion, score
@@ -68,7 +68,7 @@ def test_cache_identity_changes_for_sources_and_geometry(cfg):
 
 
 def test_exif_rgb_alignment_with_display_coordinate_masks(project):
-    from floodnet.common import sha256, relative
+    from floodnet.common import relative
     from floodnet.data import prepare_record, inspect_record
     root, _ = project
     rgb = np.zeros((12, 20, 3), dtype=np.uint8)
@@ -171,3 +171,15 @@ def test_epoch_sampler_resumes_independently_of_worker_lifetime():
     assert first == resumed and sorted(first) == list(range(17))
     changed = Samples(); changed.epoch = type('Epoch', (), {'value':4})()
     assert list(EpochSampler(changed, 42)) != first
+
+
+def test_report_forest_uses_the_unet_class_weights_and_every_region():
+    """configs/base.json: the forest handles the imbalance like the U-Net (same capped weights, no region cap)."""
+    from floodnet.common import config
+    from floodnet.neural import class_weights
+    from floodnet.training import rf_class_weight
+    cfg = config()
+    assert cfg["rf"]["class_weight"] == "pixel_clipped" and cfg["rf"]["max_regions"] >= 10 ** 9
+    records = [{"processed_counts": [900, 30, 70]}, {"processed_counts": [500, 0, 20]}]
+    expected = class_weights(records, cfg["unet"]["weight_clip"])
+    assert rf_class_weight(cfg, records) == {c: pytest.approx(float(expected[c])) for c in range(3)}
