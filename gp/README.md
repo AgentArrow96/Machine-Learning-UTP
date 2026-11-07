@@ -21,7 +21,7 @@ Both models handle the class imbalance the same way: the forest uses the U-Net's
 
 **Results:**
 
-- **Interactive app:** https://agentarrow96.github.io/Machine-Learning-UTP/floodnet/ (source in [web/](web/); run it locally as shown below). *Full details* has every result; *Presentation* follows the report's deliverables.
+- **Interactive app:** https://agentarrow96.github.io/Machine-Learning-UTP/floodnet/ opens with the project story; the dashboard is at https://agentarrow96.github.io/Machine-Learning-UTP/floodnet/app.html (source in [web/](web/); run it locally as shown below). *Full details* has every result; *Presentation* follows the report's deliverables.
 - **The report's numbers:** [web/data/uniform.json](web/data/uniform.json), `summary` (mean, SD and range over seeds 42–44 per model and budget) and `runs` (every run's metrics, confusion matrix and checkpoint hash).
 - **First-version forest and dataset facts:** [web/data/results.json](web/data/results.json). The first version used sklearn "balanced" weights and a 100k-region cap and is kept for reference only.
 - **CSV downloads:** [web/data/exports/d41ec3fe08e7197b/](web/data/exports/d41ec3fe08e7197b/) has seed summaries, all runs and per-image scores. The U-Net rows match the report; the forest rows in these CSVs are the first version.
@@ -64,7 +64,7 @@ Set-Location -LiteralPath 'C:\Important Files\ML\gp'
 .\.venv\Scripts\python.exe -m http.server 8765 --bind 127.0.0.1 --directory web
 ```
 
-Open **http://127.0.0.1:8765/**. The sidebar switches between **Full details** and **Presentation** (the report's deliverables, simplified). Keep the server terminal open; stop it with Ctrl+C. After editing anything in `web/assets/`, bump the `?v=` number on the asset links in `web/index.html` so browsers fetch the new files. Opening the HTML with `file://` is unsupported because the app fetches JSON and images.
+Open **http://127.0.0.1:8765/**. It starts with the project story (`web/index.html`: why it matters, how we did it, what we found); its buttons open the dashboard (`web/app.html`), whose sidebar switches between **Full details** and **Presentation** (the report's deliverables, simplified). Keep the server terminal open; stop it with Ctrl+C. After editing anything in `web/assets/`, bump the `?v=` number on the asset links in `web/index.html` so browsers fetch the new files. Opening the HTML with `file://` is unsupported because the app fetches JSON and images.
 
 Optional display exports for the app (they read the frozen runs and raw data without changing them):
 
@@ -75,6 +75,8 @@ Optional display exports for the app (they read the frozen runs and raw data wit
 .\.venv\Scripts\python.exe -m floodnet export-walkthrough
 # "Data preprocessing" page (~15 s; re-hashes the downloaded archive)
 .\.venv\Scripts\python.exe -m floodnet export-preprocessing
+# Photos for the story page (web/data/landing/, committed; ~1.3 MB)
+.\.venv\Scripts\python.exe .\scripts\make_landing_images.py
 ```
 
 In the app, select any photo or prediction panel to expand it (scroll or +/− to zoom, drag to pan, ←/→ to flip between panels at the same view). Charts show values on hover or keyboard focus, have legend toggles, an **Expand** view and default annotations that **Notes on/off** hides.
@@ -127,6 +129,7 @@ To check the overlap thresholds on one pair: `.\.venv\Scripts\python.exe -m floo
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider --basetemp .tmp\pytest-manual
 node --check .\web\assets\js\app.js
+node --check .\web\assets\js\landing.js
 ```
 
 Use a fresh `--basetemp` name if Windows holds old files open. Tests cover labels, geometry, padding, hand-calculated metrics, subsets, cache identity, safe archive paths, augmentation/order reproducibility, CPU-fallback rejection, the forest's class weights and region sampling, overlap verification on a shifted crop, the overlap-strata split, the 12-run freeze gate, single-threaded RF inference, seed summaries, a synthetic-fixture pipeline and export validation. Fixture scores are test assertions, never project results.
@@ -160,7 +163,9 @@ npx.cmd --offline --yes --package @playwright/cli@0.1.22 playwright-cli -s=flood
 | `runs/<run>/evaluation_test.json` | Aggregate/per-image held-out metrics and latency |
 | `runs/<run>/predictions_test.npy` | Raw processed-resolution class predictions |
 | `runs/final_experiment.json` | Frozen 12-run + overlap identity |
+| `web/index.html`, `web/app.html` | The story page and the dashboard |
 | `web/data/results.json`, `uniform.json` | The app's data (see above) |
+| `web/data/landing/` | Story-page photos from the FloodNet test images (`scripts/make_landing_images.py`) |
 | `web/data/exports/<identity>/` | CSVs, manifests and display images |
 | `report/numbers.json`, `report/figures/` | Numbers and figures for the report (`scripts/make_report_assets.py`) |
 

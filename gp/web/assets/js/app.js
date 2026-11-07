@@ -3,11 +3,11 @@
 const { esc, pct } = FN_CHARTS;
 
 const METHOD = {
-    rf: { name: 'SLIC + Random Forest', short: 'SLIC + RF', colour: '#059669', kind: 'Traditional · CPU' },
-    unet: { name: 'ResNet-18 U-Net', short: 'U-Net', colour: '#4f46e5', kind: 'Deep learning · CUDA' }
+    rf: { name: 'SLIC + Random Forest', short: 'SLIC + RF', colour: '#1E7E5A', kind: 'Traditional · CPU' },
+    unet: { name: 'ResNet-18 U-Net', short: 'U-Net', colour: '#3B49DF', kind: 'Deep learning · CUDA' }
 };
 const METHODS = Object.keys(METHOD);
-const SEED_COLOURS = ['#0891b2', '#d97706', '#7c3aed', '#e11d48'];
+const SEED_COLOURS = ['#0B6E8C', '#d97706', '#7c3aed', '#e11d48'];
 const CLASS_SHORT = ['Other', 'Building', 'Road'];
 const PAGE_SIZE = 24;
 
@@ -196,7 +196,7 @@ function legend() {
 }
 
 function download(key, label) {
-    return data.downloads[key] ? `<a href="${esc(data.downloads[key])}" download>${esc(label)} ↓</a>` : '';
+    return data.downloads[key] ? `<a href="${esc(data.downloads[key])}" download>${esc(label)}</a>` : '';
 }
 
 function methodPill(method) {
@@ -237,7 +237,7 @@ function summaryTable() {
     }).join('');
     const which = beforeNote();
     return `<div class="fn-table-wrap"><table class="fn-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`
-        + `<p class="fn-figure-note">${which} Mean ± standard deviation across ${data.protocol.train_seeds.length} training seeds (${data.protocol.train_seeds.join(', ')}), pooled pixel counts per run. ${esc(testLabel())}. <a href="#results">Every metric (majority IoU, weighted mIoU, accuracy, precision, recall, Dice) →</a></p>`;
+        + `<p class="fn-figure-note">${which} Mean ± standard deviation across ${data.protocol.train_seeds.length} training seeds (${data.protocol.train_seeds.join(', ')}), pooled pixel counts per run. ${esc(testLabel())}. <a href="#results">Every metric (majority IoU, weighted mIoU, accuracy, precision, recall, Dice)</a></p>`;
 }
 
 
@@ -261,7 +261,7 @@ function overview() {
     const hero = `<div class="fn-hero"><div class="fn-hero-copy"><div class="fn-tag">FLOODNET · A COMPARATIVE STUDY</div>`
         + `<h1>Reading the flood.<br><em>One pixel at a time.</em></h1>`
         + `<p>How well can traditional machine learning and a pretrained U-Net find flooded buildings and roads in post-hurricane aerial images, with all the labels or only a quarter of them?</p>`
-        + `<div class="fn-actions"><a class="fn-primary-btn" href="#results">Explore the findings →</a><a class="fn-secondary-btn" href="#explorer">Open the prediction explorer</a></div></div>`
+        + `<div class="fn-actions"><a class="fn-primary-btn" href="#results">Explore the findings</a><a class="fn-secondary-btn" href="#explorer">Open the prediction explorer</a></div></div>`
         + `<div class="fn-hero-visual">${sample ? zoomable(`<img src="${esc(sample.rgb)}" alt="Held-out FloodNet aerial image ${esc(sample.image_id)}">`, `held-out image ${sample.image_id}`, { title: `Held-out test image ${sample.image_id}`, hires: sample.id, caption: 'Official test split' }) + `<span class="fn-hero-stamp" data-plain>HELD-OUT IMAGE ${esc(sample.image_id)}</span>` : ''}</div></div>`;
     let tiles;
     tiles = metricCards([
@@ -271,8 +271,8 @@ function overview() {
             { value: testOverlap, label: 'Test images overlapping a train frame', note: 'Verified by keypoint matching' }
         ]);
     const intro = `<div class="fn-grid fn-two-col">`
-        + card('A small experiment, a specific question', `<p>The primary score is the mean IoU of the two target classes, flooded buildings and flooded roads (${FN_MATH.inline('fmiou')}). Image IDs, input resolution and scoring rules stay fixed while the method and the labelled-data budget change.</p><div class="fn-flow"><div>RGB image</div><span>→</span><div>Learn / classify</div><span>→</span><div>Pixel labels</div></div><a href="#methodology">See how the methods work →</a>`)
-        + card('What this study can tell us', `<p>Measured segmentation quality, missed target regions, data-efficiency trade-offs, and the compute cost on one laptop.</p><p>It does not establish road safety, flood depth, emergency-response benefit or performance on a different flood event.</p><a href="#interpretation">Read the practical limits →</a>`)
+        + card('A small experiment, a specific question', `<p>The primary score is the mean IoU of the two target classes, flooded buildings and flooded roads (${FN_MATH.inline('fmiou')}). Image IDs, input resolution and scoring rules stay fixed while the method and the labelled-data budget change.</p><div class="fn-flow"><div>RGB image</div><span aria-hidden="true"></span><div>Learn / classify</div><span aria-hidden="true"></span><div>Pixel labels</div></div><a href="#methodology">See how the methods work</a>`)
+        + card('What this study can tell us', `<p>Measured segmentation quality, missed target regions, data-efficiency trade-offs, and the compute cost on one laptop.</p><p>It does not establish road safety, flood depth, emergency-response benefit or performance on a different flood event.</p><a href="#interpretation">Read the practical limits</a>`)
         + `</div>`;
     const comparison = card('The held-out comparison', summaryTable());
     return hero + notice() + tiles + overviewTakeaways() + comparison + intro;
@@ -309,7 +309,7 @@ function datasetPage() {
         + `${legend()}<div class="fn-callout">“Other” includes floodwater. This study detects flooded infrastructure; it does not outline all water.</div>`);
     html += `<div class="fn-grid fn-two-col">`
         + vis('Original training-pixel distribution', options => FN_CHARTS.bars(d.original_classes.map((name, i) => ({
-            label: name, value: original.pixel_counts[i] / originalTotal, colour: i === 1 ? '#f59e0b' : i === 3 ? '#0891b2' : '#94a3b8', emphasis: i === 1 || i === 3,
+            label: name, value: original.pixel_counts[i] / originalTotal, colour: i === 1 ? '#f59e0b' : i === 3 ? '#0B6E8C' : '#9BA5B0', emphasis: i === 1 || i === 3,
             tip: [pct(original.pixel_counts[i] / originalTotal, 2), `${name} · original ID ${i}`, `${num(original.pixel_counts[i])} training pixels`]
         })), { ...options, left: 140, label: 'Original training class pixel shares', note: `The two targets (IDs 1 and 3) are only ${pct(originalTargets)} of all training pixels` }), 'Measured on the original indexed training annotations.')
         + vis('Processed training-pixel distribution', options => FN_CHARTS.bars(data.classes.map((c, i) => ({
@@ -331,7 +331,7 @@ function overlapSection() {
     const t = overlap.summary.test;
     const v = overlap.summary.val;
     const histogram = options => FN_CHARTS.bars(overlap.test_max_overlap_histogram.map(h => ({
-        label: h.label, value: h.count / t.images, text: `${h.count} images`, colour: h.label === 'None' ? '#059669' : '#d97706',
+        label: h.label, value: h.count / t.images, text: `${h.count} images`, colour: h.label === 'None' ? '#1E7E5A' : '#d97706',
         tip: [`${h.count} test images`, `Largest overlap: ${h.label}`, `${pct(h.count / t.images)} of the test split`]
     })), { ...options, left: 100, label: 'Largest verified overlap with any training frame, per test image', note: `${num(t.overlapping_train)} of ${num(t.images)} test images (${pct(t.overlapping_train / t.images, 0)}) share ground with a training frame` });
     const examples = overlap.examples.map((e, i) => {
@@ -351,7 +351,7 @@ function overlapSection() {
             { value: num(t.clean), label: 'Test images with no overlap', note: `Only ${overlap.target_images.clean_with_building} contain flooded buildings, ${overlap.target_images.clean_with_road} flooded roads` }
         ])
         + chartBlock('Largest overlap with any training frame', histogram, { heading: 'h3' })
-        + (examples ? `<h3 class="fn-vis-title" style="margin:18px 0 10px">Strongest examples</h3><p class="fn-small fn-muted">Select a photo to expand it; ← / → flips between the test and training frame.</p><div class="fn-pair-grid">${examples}</div>` : '')
+        + (examples ? `<h3 class="fn-vis-title" style="margin:18px 0 10px">Strongest examples</h3><p class="fn-small fn-muted">Select a photo to expand it; the left and right arrow keys flip between the test and training frame.</p><div class="fn-pair-grid">${examples}</div>` : '')
         + `<div class="fn-callout">The official split is kept for the headline results, as the methodology requires. Because the flooded scenes were photographed densely, an overlap-free test subset holds almost no flooded targets and cannot be scored fairly. The Results page instead compares target images with lower and higher overlap.</div>`
         + `<div class="fn-downloads">${download('overlap', 'Verified overlap pairs CSV')}</div></section>`;
 }
@@ -374,27 +374,27 @@ function methodology() {
         `The primary score is ${FN_MATH.inline('fmiou')}, from pooled pixel counts.`,
         'The class imbalance is handled the same way for both models: the same capped inverse-frequency class weights, and all of the training data.',
     ]);
-    html += card('The shared preparation path', `<div class="fn-flow"><div>Audit originals</div><span>→</span><div>Remap labels</div><span>→</span><div>Resize + pad</div><span>→</span><div>Cache once</div><span>→</span><div>25% / 100%</div></div>`
+    html += card('The shared preparation path', `<div class="fn-flow"><div>Audit originals</div><span aria-hidden="true"></span><div>Remap labels</div><span aria-hidden="true"></span><div>Resize + pad</div><span aria-hidden="true"></span><div>Cache once</div><span aria-hidden="true"></span><div>25% / 100%</div></div>`
         + `<p>Aspect ratio is preserved inside a 256×256 frame. Masks use nearest-neighbour resizing, and padded pixels are ignored in training and scoring. One stratified 25% subset (seed ${data.protocol.subset_seed}) is shared by every method and seed. Validation and test sets never change.</p>`);
     const rf = `<section class="fn-card fn-method-card"><span class="fn-pill rf">Traditional · CPU</span><h2 style="margin-top:12px">SLIC + Random Forest</h2>`
         + `<p>Neighbouring pixels are grouped into about 250 superpixels. Each region is described by colour and texture, then classified by a class-weighted forest.</p>`
-        + `<div class="fn-method-path"><span>RGB</span>→<span>SLIC regions</span>→<span>22 features</span>→<span>Forest</span></div>`
+        + `<div class="fn-method-path"><span>RGB</span><span>SLIC regions</span><span>22 features</span><span>Forest</span></div>`
         + `<dl class="fn-definition-list"><dt>Colour</dt><dd>RGB/HSV mean and standard deviation</dd><dt>Texture</dt><dd>10-bin uniform LBP histogram</dd>`
         + (`<dt>Region label</dt><dd>Majority annotation, padding excluded</dd><dt>Forest</dt><dd>150 trees · maximum depth 20</dd>`
                 + `<dt>Class weights</dt><dd>The U-Net's capped inverse-frequency weights: ${esc(rfWeights())}<br><small class="fn-muted">Other / building / road</small></dd>`
                 + `<dt>Training data</dt><dd>Every training region, none discarded</dd>`)
         + `<dt>Regions used</dt><dd>25%: ${regionCounts(25)}<br>100%: ${regionCounts(100)}<br><small class="fn-muted">Other / building / road</small></dd></dl>`
-        + (`<p class="fn-small fn-muted">First version (kept for reference): sklearn “balanced” weights and a ${num(data.protocol.rf_max_regions)}-region cap that dropped two thirds of the “Other” regions at 100%. It was changed so that both models handle the imbalance the same way. <a href="#results">Both versions compared →</a></p>`)
+        + (`<p class="fn-small fn-muted">First version (kept for reference): sklearn “balanced” weights and a ${num(data.protocol.rf_max_regions)}-region cap that dropped two thirds of the “Other” regions at 100%. It was changed so that both models handle the imbalance the same way. <a href="#results">Both versions compared</a></p>`)
         + `</section>`;
     const unet = `<section class="fn-card fn-method-card unet"><span class="fn-pill unet">Deep learning · CUDA</span><h2 style="margin-top:12px">Lightweight U-Net</h2>`
         + `<p>A pretrained ResNet-18 encoder extracts features. A decoder with skip connections restores spatial detail and outputs three scores per pixel.</p>`
-        + `<div class="fn-method-path"><span>RGB</span>→<span>Encoder</span>→<span>Decoder + skips</span>→<span>3 logits</span></div>`
-        + `<dl class="fn-definition-list"><dt>Pretraining</dt><dd>ImageNet ResNet-18</dd><dt>Decoder</dt><dd>128 → 64 → 32 → 16 → 8</dd>`
+        + `<div class="fn-method-path"><span>RGB</span><span>Encoder</span><span>Decoder + skips</span><span>3 logits</span></div>`
+        + `<dl class="fn-definition-list"><dt>Pretraining</dt><dd>ImageNet ResNet-18</dd><dt>Decoder</dt><dd>128, 64, 32, 16, 8</dd>`
         + `<dt>Loss</dt><dd>Class-weighted cross-entropy</dd><dt>Optimiser</dt><dd>AdamW · LR 1e-4 · WD 1e-4 · batch 4</dd>`
         + `<dt>Selection</dt><dd>Best validation flooded mIoU, patience 6, up to 30 epochs</dd></dl>`
         + `<p class="fn-small">BF16 mixed precision on the GPU. Training stops with an error instead of falling back to the CPU.</p>` + `</section>`;
     html += `<div class="fn-grid fn-two-col">${rf}${unet}</div>`;
-    html += `<div class="fn-callout">Want to see these steps on a real test image? <a href="#walkthrough">Open the step-by-step walkthrough →</a> It replays each model on six representative scenes, and every final mask it shows is checked against the frozen test prediction.</div>`;
+    html += `<div class="fn-callout">Want to see these steps on a real test image? <a href="#walkthrough">Open the step-by-step walkthrough</a> It replays each model on six representative scenes, and every final mask it shows is checked against the frozen test prediction.</div>`;
     html += card('Notation and equations', `<p>Every formula used on this site, written once. ${FN_MATH.tex('c')} is a class, ${FN_MATH.tex(String.raw`TP_c,\ FP_c,\ FN_c`)} are pooled pixel counts over the test images and ${FN_MATH.tex('s')} is a training seed.</p>`
         + `<h3 class="fn-eq-group">Metrics</h3>${FN_MATH.equations(['fmiou', 'iou', 'majority', 'miou3', 'fwiou', 'acc', 'precision', 'recall', 'dice'])}`
         + `<h3 class="fn-eq-group">Data and training</h3>${FN_MATH.equations(['norm', 'weights', 'ce'])}`
@@ -453,7 +453,7 @@ function resultsTakeaways() {
     const best = [...bundle().summary].filter(s => s.budget === 100).sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0];
     return takeaways([
         best ? `Best at 100% labels: <strong>${esc(METHOD[best.method].name)}</strong>, ${meanSd(best.full.flooded_miou)}.` : '',
-        `More labels: U-Net ${points(effectFor('unet')?.full.mean)}, SLIC + RF ${points(effectFor('rf')?.full.mean)} (25% → 100%, seed-matched).`
+        `More labels: U-Net ${points(effectFor('unet')?.full.mean)}, SLIC + RF ${points(effectFor('rf')?.full.mean)} (25% to 100%, seed-matched).`
     ]);
 }
 
@@ -571,11 +571,11 @@ function shiftTable(base, other, methods = METHODS) {
         const o = configMetrics(method, budget, other);
         const cell = (key, primary) => {
             const d = deltaStat(method, budget, base, other, key);
-            return `<td${primary ? ' class="fn-score"' : ''}>${pct(b[key].mean)} → <strong>${pct(o[key].mean)}</strong>${primary ? `<small>Δ ${points(d.mean)} (${d.values.map(points).join(', ')})</small>` : `<span class="fn-seed-values"><br>Δ ${points(d.mean)}</span>`}</td>`;
+            return `<td${primary ? ' class="fn-score"' : ''}>${pct(b[key].mean)} to <strong>${pct(o[key].mean)}</strong>${primary ? `<small>Δ ${points(d.mean)} (${d.values.map(points).join(', ')})</small>` : `<span class="fn-seed-values"><br>Δ ${points(d.mean)}</span>`}</td>`;
         };
         return `<tr><td><span class="fn-dot" style="background:${METHOD[method].colour}"></span>${esc(METHOD[method].short)}</td><td>${budget}%</td>${cell('minority', true)}<td class="fn-nowrap">${c ? interval(c.ci) : 'N/A'}</td><td>${c ? decisionPill(c.decision) : ''}</td>${cell('majority')}${cell('weighted')}</tr>`;
     })).join('');
-    return `<div class="fn-table-wrap"><table class="fn-table fn-metrics-table fn-shift-table"><thead><tr><th>Method</th><th>Labels</th><th>Minority IoU ★<br><small>first version → current</small></th><th>95% CI</th><th>Decision</th><th>Majority IoU<br><small>Other</small></th><th>Weighted mIoU<br><small>by pixel share</small></th></tr></thead><tbody>${rows}</tbody></table></div>`
+    return `<div class="fn-table-wrap"><table class="fn-table fn-metrics-table fn-shift-table"><thead><tr><th>Method</th><th>Labels</th><th>Minority IoU ★<br><small>first version to current</small></th><th>95% CI</th><th>Decision</th><th>Majority IoU<br><small>Other</small></th><th>Weighted mIoU<br><small>by pixel share</small></th></tr></thead><tbody>${rows}</tbody></table></div>`
         + `<p class="fn-figure-note">Mean over seeds ${data.protocol.train_seeds.join(', ')}; the number under each pair is the mean seed-matched change. The interval and decision (pre-registered paired bootstrap, ${num(5000)} resamples) apply to the primary metric, minority IoU; the other columns are descriptive.</p>`;
 }
 
@@ -632,7 +632,7 @@ function trainingPage() {
         const run = runsFor('unet', budget).find(r => r.seed === lossSeed);
         if (run) {
             const validation = run.history.map(e => e.val_loss);
-            series.push({ label: 'training', colour: '#4f46e5', values: run.history.map(e => e.train_loss), dash: false });
+            series.push({ label: 'training', colour: '#3B49DF', values: run.history.map(e => e.train_loss), dash: false });
             series.push({ label: 'validation', colour: '#d97706', values: validation, dash: true });
             vline = { index: run.best_epoch - 1, label: `selected epoch ${run.best_epoch}` };
             const lowest = validation.indexOf(Math.min(...validation));
@@ -732,8 +732,8 @@ function updateExplorer() {
     $('#fn-sample-count').textContent = `${samples.length} / ${data.samples.length} images`;
     $('#fn-gallery').innerHTML = samples.slice(state.page * PAGE_SIZE, (state.page + 1) * PAGE_SIZE).map(s => `<button type="button" class="fn-sample-card ${s.id === state.selected ? 'selected' : ''}" data-sample="${esc(s.id)}" aria-label="Inspect test image ${esc(s.image_id)}">`
         + `<img src="${esc(s.rgb)}" loading="lazy" alt="Aerial image ${esc(s.image_id)}"><span>${esc(s.image_id)}<small>${targetText(s)}</small></span></button>`).join('');
-    $('#fn-pager').innerHTML = `<button type="button" class="fn-btn" data-page-step="-1" ${state.page === 0 ? 'disabled' : ''}>← Previous</button><span>Page ${state.page + 1} / ${pages}</span>`
-        + `<button type="button" class="fn-btn" data-page-step="1" ${state.page + 1 >= pages ? 'disabled' : ''}>Next →</button>`;
+    $('#fn-pager').innerHTML = `<button type="button" class="fn-btn" data-page-step="-1" ${state.page === 0 ? 'disabled' : ''}>Previous</button><span>Page ${state.page + 1} / ${pages}</span>`
+        + `<button type="button" class="fn-btn" data-page-step="1" ${state.page + 1 >= pages ? 'disabled' : ''}>Next</button>`;
     if (!selected) {
         $('#fn-viewer').innerHTML = empty('No matching images', 'Change the filters or the image-ID search.');
         return;
@@ -754,7 +754,7 @@ function updateExplorer() {
                 : f.kind === 'truth' || f.run ? zoomable(`<canvas data-mask-kind="${f.kind}" aria-label="${esc(f.title)} for image ${esc(selected.image_id)}"></canvas>`, `${f.title}, image ${selected.image_id}`, { ...attrs, pixelated: '' })
                     : empty('Run not exported', '');
             return `<figure><figcaption><span class="fn-caption-name">${esc(f.title)}</span>${score}</figcaption>${body}</figure>`;
-        }).join('')}</div><p class="fn-small fn-muted fn-viewer-hint">Select any panel to expand it. In the expanded view, ← / → flips between the ${figures.length} panels at the same zoom, so you can compare the same pixels.</p>`;
+        }).join('')}</div><p class="fn-small fn-muted fn-viewer-hint">Select any panel to expand it. In the expanded view, the left and right arrow keys flip between the ${figures.length} panels at the same zoom, so you can compare the same pixels.</p>`;
     drawMasks(selected);
 }
 
@@ -782,7 +782,7 @@ function renderPanel(canvas, photo, mask, width, height) {
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext('2d');
-    context.fillStyle = '#e9eef2';
+    context.fillStyle = '#E7E3DB';
     context.fillRect(0, 0, width, height);
     if (state.overlay || !mask) {
         context.imageSmoothingEnabled = true;
@@ -867,7 +867,7 @@ function interpretation() {
             const all = e.values.every(v => v > 0) ? 'every seed improved' : e.values.every(v => v < 0) ? 'every seed got worse' : 'seeds disagree on the direction';
             return `${points(e.mean)} on average (${all}; range ${points(e.min)} to ${points(e.max)})`;
         };
-        const recall = (method, key) => `${pct(full(method, 25)[key].mean, 0)} → ${pct(full(method, 100)[key].mean, 0)}`;
+        const recall = (method, key) => `${pct(full(method, 25)[key].mean, 0)} to ${pct(full(method, 100)[key].mean, 0)}`;
         const best = [...B.summary].filter(s => s.budget === 100).sort((a, b) => b.full.flooded_miou.mean - a.full.flooded_miou.mean)[0];
         const unetBeatsRf = runsFor('unet', 25).concat(runsFor('unet', 100)).every(u => B.runs.filter(r => r.method === 'rf').every(r => u.metrics.flooded_miou > r.metrics.flooded_miou));
         html += `<div class="fn-dark-card"><h3>Headline</h3><p>With all training labels, the U-Net scores <strong>${points(gap).replace('+', '')}</strong> higher flooded-class mIoU than SLIC + Random Forest on the official test split (mean of ${data.protocol.train_seeds.length} seeds)${unetBeatsRf ? '; every U-Net run beats every RF run' : ''}. The best approach at 100% labels is <strong>${esc(METHOD[best.method].name)}</strong> at ${meanSd(best.full.flooded_miou)}.` + `</p></div>`;
@@ -890,8 +890,8 @@ function interpretation() {
     const reps = data.representatives.map(id => data.samples.find(s => s.id === id)).filter(Boolean);
     html += card('Six representative scenes', `<p>Chosen by target presence and pixel coverage, never by prediction quality. Select a photo to expand it, or open the scene in the explorer or the step-by-step walkthrough.</p>`
         + (reps.length ? `<div class="fn-rep-grid">${reps.map(s => `<div class="fn-rep">${zoomable(`<img src="${esc(s.rgb)}" loading="lazy" alt="Representative image ${esc(s.image_id)}">`, `representative image ${s.image_id}`, { group: 'representatives', title: `Image ${s.image_id}`, hires: s.id, caption: `${targetText(s)} · ${pct(s.target_fraction)} target pixels` })}`
-            + `<span>Image ${plain(s.image_id)} · ${pct(s.target_fraction)} target pixels<br><a href="#explorer" data-representative="${esc(s.id)}">Explorer →</a> <a href="#walkthrough" data-walkthrough="${esc(s.id)}">Step by step →</a></span></div>`).join('')}</div>` : empty('Representative scenes pending')));
-    html += card('Failure cases deserve a closer look', `<p>In the explorer, sort by a model's lowest target IoU to examine missed or confused infrastructure.</p><a class="fn-primary-btn" href="#explorer" data-failures="unet">Inspect U-Net failure cases →</a>`);
+            + `<span>Image ${plain(s.image_id)} · ${pct(s.target_fraction)} target pixels<br><a href="#explorer" data-representative="${esc(s.id)}">Explorer</a> <a href="#walkthrough" data-walkthrough="${esc(s.id)}">Step by step</a></span></div>`).join('')}</div>` : empty('Representative scenes pending')));
+    html += card('Failure cases deserve a closer look', `<p>In the explorer, sort by a model's lowest target IoU to examine missed or confused infrastructure.</p><a class="fn-primary-btn" href="#explorer" data-failures="unet">Inspect U-Net failure cases</a>`);
     html += card('Limits on interpretation', `<ul>${data.limitations.map(x => `<li>${esc(x)}</li>`).join('')}${'<li>The forest was revised after its first test evaluation so that both models handle the imbalance the same way; only the forest changed, the rule was fixed in advance, and the first version is kept and reported.</li>'}</ul><p>SDG 11 and SDG 13 motivate the study. Real-world benefit for responders would need separate validation.</p>`);
     return html;
 }
@@ -953,7 +953,7 @@ function updateStatus() {
 
 
 function syncViewButtons() {
-    $$('[data-mode]').forEach(button => {
+    $$('button[data-mode="details"], button[data-mode="presentation"]').forEach(button => {
         const on = button.dataset.mode === state.mode;
         button.classList.toggle('on', on);
         button.setAttribute('aria-pressed', String(on));
@@ -1046,9 +1046,9 @@ function downloadChart(button) {
     copy.querySelectorAll('.fn-off, .fn-crosshair, .fn-hit').forEach(node => node.remove());
     if (scope.classList.contains('fn-notes-off')) copy.querySelectorAll('.fn-note').forEach(node => node.remove());
     const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-    style.textContent = 'text{font-family:Arial,sans-serif;font-size:11px;fill:#64748b}.fn-chart-value{fill:#0f172a;font-weight:700}'
-        + '.fn-axis{stroke:#cbd5e1}.fn-note{fill:#334155;font-weight:700;font-size:11px}.fn-note-tag{fill:#fff;font-weight:800;font-size:10px}'
-        + '.fn-leader,.fn-vline{stroke:#94a3b8;stroke-width:1}.fn-emphasis .fn-chart-value{fill:#0f172a}';
+    style.textContent = 'text{font-family:Arial,sans-serif;font-size:11px;fill:#5C6670}.fn-chart-value{fill:#121A21;font-weight:700}'
+        + '.fn-axis{stroke:#B8B3A8}.fn-note{fill:#2A3540;font-weight:700;font-size:11px}.fn-note-tag{fill:#fff;font-weight:800;font-size:10px}'
+        + '.fn-leader,.fn-vline{stroke:#9BA5B0;stroke-width:1}.fn-emphasis .fn-chart-value{fill:#121A21}';
     copy.prepend(style);
     const blob = new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
@@ -1082,7 +1082,7 @@ document.addEventListener('click', event => {
         toggle.setAttribute('aria-expanded', String(open));
         return;
     }
-    const mode = target.closest('[data-mode]');
+    const mode = target.closest('button[data-mode="details"], button[data-mode="presentation"]');
     if (mode) {
         if (mode.dataset.mode !== state.mode) {
             state.mode = mode.dataset.mode;

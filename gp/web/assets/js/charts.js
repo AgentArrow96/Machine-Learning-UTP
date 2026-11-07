@@ -40,8 +40,8 @@ const FN_CHARTS = {
             return `<g class="fn-mark${item.emphasis ? ' fn-emphasis' : ''}"${FN_CHARTS.tip(item.tip || [text, item.label])}>`
                 + `<rect class="fn-hit" x="0" y="${y - (rowHeight - barHeight) / 2}" width="${width}" height="${rowHeight}" fill="transparent"/>`
                 + `<text x="0" y="${baseline}">${esc(item.label)}</text>`
-                + `<rect x="${left}" y="${y}" width="${track}" height="${barHeight}" rx="4" fill="#f1f5f9"/>`
-                + `<rect class="fn-bar" x="${left}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" fill="${item.colour || '#0891b2'}"/>`
+                + `<rect x="${left}" y="${y}" width="${track}" height="${barHeight}" rx="1" fill="#EFECE6"/>`
+                + `<rect class="fn-bar" x="${left}" y="${y}" width="${barWidth}" height="${barHeight}" rx="1" fill="${item.colour || '#0B6E8C'}"/>`
                 + `<text class="fn-chart-value" x="${left + barWidth + 8}" y="${baseline}">${esc(text)}</text></g>`;
         }).join('');
         const note = options.note
@@ -78,13 +78,13 @@ const FN_CHARTS = {
                 const seeds = stat.values.map((v, i) => `${options.seeds ? `Seed ${options.seeds[i]}` : `Run ${i + 1}`}: ${FN_CHARTS.pct(v)}`);
                 svg += `<g class="fn-mark" data-series="${s}"${FN_CHARTS.tip([`${FN_CHARTS.pct(stat.mean)} mean`, `${series.name} · ${group.label}`, `Range ${FN_CHARTS.pct(stat.min)}–${FN_CHARTS.pct(stat.max)}`, ...seeds])}>`;
                 svg += `<rect class="fn-hit" x="${x - 5}" y="${top - 10}" width="${barW + 10}" height="${plotH + 10}" fill="transparent"/>`;
-                svg += `<rect class="fn-bar" x="${x}" y="${y(stat.mean)}" width="${barW}" height="${y(0) - y(stat.mean)}" rx="4" fill="${series.colour}"/>`;
-                svg += `<line x1="${mid}" x2="${mid}" y1="${y(stat.min)}" y2="${y(stat.max)}" stroke="#0f172a" stroke-width="1.6"/>`;
-                svg += `<line x1="${mid - 7}" x2="${mid + 7}" y1="${y(stat.min)}" y2="${y(stat.min)}" stroke="#0f172a" stroke-width="1.6"/>`;
-                svg += `<line x1="${mid - 7}" x2="${mid + 7}" y1="${y(stat.max)}" y2="${y(stat.max)}" stroke="#0f172a" stroke-width="1.6"/>`;
+                svg += `<rect class="fn-bar" x="${x}" y="${y(stat.mean)}" width="${barW}" height="${y(0) - y(stat.mean)}" rx="1" fill="${series.colour}"/>`;
+                svg += `<line x1="${mid}" x2="${mid}" y1="${y(stat.min)}" y2="${y(stat.max)}" stroke="#121A21" stroke-width="1.6"/>`;
+                svg += `<line x1="${mid - 7}" x2="${mid + 7}" y1="${y(stat.min)}" y2="${y(stat.min)}" stroke="#121A21" stroke-width="1.6"/>`;
+                svg += `<line x1="${mid - 7}" x2="${mid + 7}" y1="${y(stat.max)}" y2="${y(stat.max)}" stroke="#121A21" stroke-width="1.6"/>`;
                 stat.values.forEach((value, i) => {
                     const jitter = (i - (stat.values.length - 1) / 2) * 7;
-                    svg += `<circle cx="${mid + jitter}" cy="${y(value)}" r="4" fill="white" stroke="#0f172a" stroke-width="1.2"/>`;
+                    svg += `<circle cx="${mid + jitter}" cy="${y(value)}" r="4" fill="white" stroke="#121A21" stroke-width="1.2"/>`;
                 });
                 svg += `<text class="fn-chart-value" x="${mid}" y="${y(stat.max) - 8}" text-anchor="middle">${FN_CHARTS.pct(stat.mean)}</text>`;
                 let lift = 22;
@@ -93,7 +93,7 @@ const FN_CHARTS = {
                     lift += 14;
                 }
                 if (stat.mean === best) {
-                    svg += `<g class="fn-note"><rect x="${mid - 19}" y="${y(stat.max) - lift - 11}" width="38" height="15" rx="7" fill="#0f172a"/>`
+                    svg += `<g class="fn-note"><rect x="${mid - 19}" y="${y(stat.max) - lift - 11}" width="38" height="15" rx="2" fill="#121A21"/>`
                         + `<text class="fn-note-tag" x="${mid}" y="${y(stat.max) - lift}" text-anchor="middle">Best</text></g>`;
                 }
                 svg += `</g>`;
@@ -201,7 +201,7 @@ const FN_CHARTS = {
     confusion(matrix, names, options = {}) {
         const esc = FN_CHARTS.esc;
         const lower = name => name.toLowerCase();
-        let html = `<div class="fn-matrix${options.large ? ' fn-large' : ''}"><div class="fn-matrix-head">Truth ↓ / Pred →</div>`;
+        let html = `<div class="fn-matrix${options.large ? ' fn-large' : ''}"><div class="fn-matrix-head">Rows truth · columns predicted</div>`;
         html += names.map(n => `<div class="fn-matrix-head">${esc(n)}</div>`).join('');
         matrix.forEach((row, i) => {
             const total = row.reduce((a, b) => a + b, 0) || 1;
@@ -210,11 +210,11 @@ const FN_CHARTS = {
             html += `<div class="fn-matrix-head">${esc(names[i])}</div>`;
             html += row.map((v, j) => {
                 const share = v / total;
-                const colour = share > .5 ? '#fff' : '#0f172a';
+                const colour = share > .5 ? '#fff' : '#121A21';
                 const sentence = i === j ? `${FN_CHARTS.pct(share)} of true ${lower(names[i])} pixels were predicted correctly`
                     : `${FN_CHARTS.pct(share)} of true ${lower(names[i])} pixels were predicted ${names[j]}`;
                 const tag = j === worst ? `<em class="fn-note fn-cell-tag">largest error</em>` : '';
-                return `<div class="fn-cell${i === j ? ' fn-diag' : ''}" style="background:rgba(8,145,178,${(.06 + .86 * share).toFixed(3)});color:${colour}"${FN_CHARTS.tip([`${(share * 100).toFixed(1)}%`, sentence, `${v.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} pixels`])}>${(share * 100).toFixed(1)}%<small>${v.toLocaleString('en-US')} px</small>${tag}</div>`;
+                return `<div class="fn-cell${i === j ? ' fn-diag' : ''}" style="background:rgba(11,110,140,${(.06 + .86 * share).toFixed(3)});color:${colour}"${FN_CHARTS.tip([`${(share * 100).toFixed(1)}%`, sentence, `${v.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} pixels`])}>${(share * 100).toFixed(1)}%<small>${v.toLocaleString('en-US')} px</small>${tag}</div>`;
             }).join('');
         });
         return `${html}</div>`;

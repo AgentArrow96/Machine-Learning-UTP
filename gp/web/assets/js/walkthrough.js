@@ -62,8 +62,8 @@ const FN_WALKTHROUGH = {
             + `<section class="fn-card fn-walk-stage" role="tabpanel" aria-labelledby="fn-walk-tab-${s.tab}"><ol class="fn-walk-rail">${rail}</ol>`
             + `<div class="fn-walk-head"><span class="fn-eyebrow">Step ${index + 1} of ${steps.length}</span><h2>${esc(step.title)}</h2></div>`
             + `<div class="fn-walk-body"><div class="fn-walk-figures ${(step.figures.match(/<figure/g) || []).length > 1 ? 'two' : ''}">${step.figures}</div><div class="fn-walk-text">${step.text}</div></div>`
-            + `<div class="fn-walk-nav"><button type="button" class="fn-btn" data-walk-move="-1" ${index === 0 ? 'disabled' : ''}>← Previous step</button>`
-            + `<button type="button" class="fn-btn fn-btn-strong" data-walk-move="1">${index === steps.length - 1 ? (s.tab === 'unet' ? 'Back to preparation' : 'Next method →') : 'Next step →'}</button></div></section>`
+            + `<div class="fn-walk-nav"><button type="button" class="fn-btn" data-walk-move="-1" ${index === 0 ? 'disabled' : ''}>Previous step</button>`
+            + `<button type="button" class="fn-btn fn-btn-strong" data-walk-move="1">${index === steps.length - 1 ? (s.tab === 'unet' ? 'Back to preparation' : 'Next method') : 'Next step'}</button></div></section>`
             + self.verification(e);
         step.draw?.();
     },
@@ -229,7 +229,7 @@ const FN_WALKTHROUGH = {
                 {
                     title: 'Three classes',
                     figures: self.canvas('fn-walk-truth', 'Ground truth after remapping', `${label}: three-class ground truth`) + self.classLegend(),
-                    text: `<p>The ten classes collapse to three: ID 1 → <strong>flooded building</strong>, ID 3 → <strong>flooded road</strong>, everything else → <strong>Other</strong> (including open floodwater, which is not a target).</p>`
+                    text: `<p>The ten classes collapse to three: ID 1 becomes <strong>flooded building</strong>, ID 3 becomes <strong>flooded road</strong>, everything else becomes <strong>Other</strong> (including open floodwater, which is not a target).</p>`
                         + `<dl class="fn-definition-list">${[0, 1, 2].map(c => `<dt>${esc(data.classes[c].name)}</dt><dd>${num(counts[c])} px · ${pct(counts[c] / total)}</dd>`).join('')}</dl>`
                         + (S.preparation_reproduced ? `<p class="fn-small fn-check">✓ Re-running this preparation from the raw photo and annotation reproduced the cached 256-px arrays exactly.</p>` : ''),
                     draw: () => self.drawLabels('fn-walk-truth', S.truth)
@@ -256,7 +256,7 @@ const FN_WALKTHROUGH = {
                         + `<div class="fn-walk-quick">${regionButtons}</div>`,
                     text: `<p>Region <strong>#${region}</strong>: ${num(regions.area[region])} pixels, majority ground truth <strong>${esc(data.classes[regions.truth_label[region]].name)}</strong>.</p>`
                         + chartBlock(`Region #${region}: its 22 features`, options => FN_CHARTS.bars(d.feature_names.map((name, i) => ({
-                            label: featureLabel(name), value: regions.features[region][i], text: regions.features[region][i].toFixed(3), colour: name.startsWith('lbp') ? '#64748b' : name.startsWith('hsv') ? '#0d9488' : '#4f46e5',
+                            label: featureLabel(name), value: regions.features[region][i], text: regions.features[region][i].toFixed(3), colour: name.startsWith('lbp') ? '#5C6670' : name.startsWith('hsv') ? '#0d9488' : '#3B49DF',
                             tip: [regions.features[region][i].toFixed(4), featureLabel(name), `Forest importance rank ${ranked.findIndex(r => r[1] === i) + 1} of 22`]
                         })), { ...options, max: 1, left: 150, rowHeight: 22, label: `Feature values of region ${region}` }), { heading: 'h3', note: 'Indigo = RGB, teal = HSV, grey = texture. All values lie between 0 and 1.' }),
                     draw: () => self.drawRegions(e)
@@ -271,7 +271,7 @@ const FN_WALKTHROUGH = {
                             label: data.classes[c].name, value: probs[c], colour: data.classes[c].colour, tip: [pct(probs[c]), `Average tree probability: ${data.classes[c].name}`, `${votes[c]} of ${B.rf.trees} trees pick it`]
                         })), { ...options, max: 1, left: 130, rowHeight: 30, label: 'Forest probabilities for the selected region' }), { heading: 'h3' })
                         + chartBlock(`What the ${state.budget}% forest relies on most`, options => FN_CHARTS.bars(ranked.slice(0, 8).map(([v, i]) => ({
-                            label: featureLabel(d.feature_names[i]), value: v, text: pct(v), colour: '#059669', tip: [pct(v, 2), `Importance of ${featureLabel(d.feature_names[i])}`, 'Mean impurity decrease over all trees']
+                            label: featureLabel(d.feature_names[i]), value: v, text: pct(v), colour: '#1E7E5A', tip: [pct(v, 2), `Importance of ${featureLabel(d.feature_names[i])}`, 'Mean impurity decrease over all trees']
                         })), { ...options, left: 150, rowHeight: 26, label: 'Top eight feature importances', note: `Top 3 features carry ${pct(ranked.slice(0, 3).reduce((a, r) => a + r[0], 0))} of the importance` }), { heading: 'h3' }),
                     draw: () => self.drawRegionProbabilities(e)
                 },
@@ -301,7 +301,7 @@ const FN_WALKTHROUGH = {
                     title: 'Decoder: rebuild the detail',
                     figures: `<div class="fn-walk-strip">${B.unet.decoder.map((x, i) => self.image(x.url, `Block ${i + 1}: ${x.channels} channels @ ${x.resolution}×${x.resolution}`, `${label}: decoder block ${i + 1}`)).join('')}</div>`,
                     text: `<p>Each decoder block doubles the resolution and joins in the encoder features of the same size through a <strong>skip connection</strong>. The deep features say <em>what</em> is there; the skips say <em>exactly where</em>.</p>`
-                        + `<p>Notice the building and road outlines sharpening from 16×16 to 256×256 (channels ${B.unet.decoder.map(x => x.channels).join(' → ')}).</p>`
+                        + `<p>Notice the building and road outlines sharpening from 16×16 to 256×256 (channels ${B.unet.decoder.map(x => x.channels).join(', ')}).</p>`
                 },
                 {
                     title: 'Three scores per pixel become probabilities',
@@ -395,7 +395,7 @@ const FN_WALKTHROUGH = {
     readoutText() {
         const r = FN_WALKTHROUGH.state.readout;
         if (!r) return '<p class="fn-small fn-muted">Point at either map to read the three probabilities at that pixel.</p>';
-        return `<p class="fn-small">Pixel (${r.x}, ${r.y}): ${[0, 1, 2].map(c => `${esc(data.classes[c].name)} <strong>${pct(r.p[c])}</strong>`).join(' · ')} → <strong>${esc(data.classes[r.p.indexOf(Math.max(...r.p))].name)}</strong></p>`;
+        return `<p class="fn-small">Pixel (${r.x}, ${r.y}): ${[0, 1, 2].map(c => `${esc(data.classes[c].name)} <strong>${pct(r.p[c])}</strong>`).join(' · ')} gives <strong>${esc(data.classes[r.p.indexOf(Math.max(...r.p))].name)}</strong></p>`;
     },
 
     async readout(canvas, clientX, clientY) {

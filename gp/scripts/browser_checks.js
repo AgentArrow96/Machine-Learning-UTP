@@ -29,9 +29,9 @@ async (page) => {
         await page.getByRole('heading', { level: 1 }).first().waitFor();
     };
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto(`${base}/?qa=${Date.now()}`);
+    await page.goto(`${base}/app.html?qa=${Date.now()}`);
     await page.evaluate(() => { try { localStorage.clear(); } catch { } });
-    await page.goto(`${base}/?qa=${Date.now()}#overview`);
+    await page.goto(`${base}/app.html?qa=${Date.now()}#overview`);
     await page.getByRole('heading', { level: 1 }).first().waitFor();
     const bundle = await json('results');
     const uniform = await json('uniform');
@@ -66,6 +66,31 @@ async (page) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     assert(pages.details.join() === 'overview,dataset,preprocessing,methodology,walkthrough,results,explorer,training,interpretation,reproducibility', 'Full details lists exactly the Before pages');
     assert(pages.presentation.join() === 'summary,problem,data,prepare,features,method,evaluate,sustain,limits,sources', 'Presentation lists the summary, the eight deliverables and the sources');
+
+    const allRoutes = [...pages.details, ...pages.presentation];
+    for (const mode of ['details', 'presentation']) {
+        await setMode(mode);
+        for (const route of pages[mode]) {
+            await go(route);
+            const label = `${mode} #${route}`;
+            const bad = await page.evaluate(known => [...document.querySelectorAll('#fn-page a[href^="#"]')]
+                .map(a => a.getAttribute('href').slice(1))
+                .filter(h => h && !known.includes(h) && !document.getElementById(h)), allRoutes);
+            assert(bad.length === 0, `${label}: every in-app link points to a page or an anchor${bad.length ? ` (broken: ${bad.join(', ')})` : ''}`);
+            for (const opener of ['#fn-page .fn-zoom', '#fn-page [data-expand-chart]']) {
+                const trigger = page.locator(opener).first();
+                if (!(await trigger.count())) continue;
+                await trigger.scrollIntoViewIfNeeded();
+                await trigger.click();
+                await page.locator('.fn-lightbox[open]').waitFor();
+                await page.locator('.fn-lightbox [data-viewer="close"]').click();
+                await page.locator('.fn-lightbox[open]').waitFor({ state: 'detached' }).catch(() => { });
+                await page.waitForTimeout(80);
+                const after = await page.evaluate(() => ({ hash: location.hash, mode: document.querySelector('button[data-mode="presentation"]').getAttribute('aria-pressed') === 'true' ? 'presentation' : 'details' }));
+                assert(after.hash === `#${route}` && after.mode === mode, `${label}: closing the ${opener.includes('zoom') ? 'image' : 'chart'} viewer stays on the page and in ${mode} mode (now ${after.hash}, ${after.mode})`);
+            }
+        }
+    }
 
     const presentation = async () => {
         await setMode('presentation');
@@ -103,15 +128,15 @@ async (page) => {
         assert(await page.locator('[data-mode="presentation"]').getAttribute('aria-pressed') === 'true', 'The chosen mode survives a reload');
     };
     await presentation();
-    await page.goto(`${base}/?qa=${Date.now()}#overview`);
+    await page.goto(`${base}/app.html?qa=${Date.now()}#overview`);
     await page.waitForFunction(() => document.querySelector('[data-mode="details"]')?.getAttribute('aria-pressed') === 'true');
     checks.push('A direct link to a Full details page switches to that mode');
-    await page.goto(`${base}/?qa=${Date.now()}#evaluate`);
+    await page.goto(`${base}/app.html?qa=${Date.now()}#evaluate`);
     await page.waitForFunction(() => document.querySelector('[data-mode="presentation"]')?.getAttribute('aria-pressed') === 'true');
     checks.push('A direct link to a Presentation page switches to that mode');
     await setMode('details');
     for (const removed of ['changes', 'improve', 'undersample', 'imbalance']) {
-        await page.goto(`${base}/?qa=${Date.now()}#${removed}`);
+        await page.goto(`${base}/app.html?qa=${Date.now()}#${removed}`);
         await page.waitForFunction(() => location.hash === '#overview');
     }
     checks.push('Links to removed pages fall back to the overview');
@@ -119,7 +144,7 @@ async (page) => {
         assert((await page.request.get(`${base}/data/${removed}.json`)).status() === 404, `data/${removed}.json is gone`);
     }
 
-    await page.goto(`${base}/?qa=${Date.now()}#overview`);
+    await page.goto(`${base}/app.html?qa=${Date.now()}#overview`);
     await page.getByRole('heading', { level: 1 }).first().waitFor();
     assert((await page.locator('.fn-table tbody tr').count()) === uniform.summary.length, 'Overview summary table lists every configuration');
     assert(await page.locator('#fn-page .katex').count() > 10, 'Numbers on the page are typeset as LaTeX');
@@ -207,6 +232,50 @@ async (page) => {
     await page.waitForFunction(() => document.querySelector('#fn-lightbox-title')?.textContent === 'SLIC + RF');
     await page.keyboard.press('Escape');
     checks.push('Viewer flips between explorer panels and closes');
+    const story = async () => {
+        await page.goto(`${base}/?qa=${Date.now()}`);
+        await page.locator('#lp-title').waitFor();
+        await page.evaluate(() => Promise.all([...document.images].map(i => { i.loading = 'eager'; return i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }); })));
+    };
+    const summary = (m, b) => uniform.summary.find(s => s.method === m && s.budget === b);
+    for (const size of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+        await page.setViewportSize(size);
+        await story();
+        const label = `Landing ${size.width}px`;
+        assert(!(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)), `${label}: no page overflow`);
+        assert(await page.evaluate(() => [...document.images].every(i => i.naturalWidth > 0)), `${label}: every image loads`);
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    const storyText = await text(page.locator('body'));
+    assert(!/CRF|hybrid/i.test(storyText) && !/\b\d{8}\b/.test(storyText), 'Landing: SLIC + RF and U-Net only, no student IDs');
+    const value = async key => (await page.locator(`[data-check="${key}"]`).first().innerText()).replace('%', '');
+    for (const [m, b] of [['unet', 100], ['rf', 100], ['unet', 25], ['rf', 25]]) {
+        assert(await value(`${m}-${b}`) === (summary(m, b).full.flooded_miou.mean * 100).toFixed(1), `Landing: ${m} ${b}% score matches uniform.json`);
+    }
+    assert(await value('road-gain') === ((summary('unet', 100).full.road_iou.mean - summary('unet', 25).full.road_iou.mean) * 100).toFixed(1), 'Landing: road gain matches uniform.json');
+    assert(await value('unet-ms') === (summary('unet', 100).inference_median_seconds.mean * 1000).toFixed(1), 'Landing: U-Net speed matches uniform.json');
+    assert(await value('overlap') === String(bundle.dataset.overlap.summary.test.overlapping_train), 'Landing: overlap count matches results.json');
+    await page.locator('[data-rail-next="why-rail"]').click();
+    await page.waitForFunction(() => document.getElementById('why-rail').scrollLeft > 0);
+    checks.push('Landing: carousel next button scrolls the cards');
+    await page.locator('#lp-theme').click();
+    assert(await page.evaluate(() => document.documentElement.dataset.theme) === 'light', 'Landing: theme toggle switches to light');
+    await story();
+    assert(await page.evaluate(() => document.documentElement.dataset.theme) === 'light', 'Landing: chosen theme survives a reload');
+    await page.locator('#lp-theme').click();
+    await page.locator('.lp-cta a[href="app.html#summary"]').click();
+    await page.waitForFunction(() => location.pathname.endsWith('app.html') && document.querySelector('[data-mode="presentation"]')?.getAttribute('aria-pressed') === 'true');
+    checks.push('Landing: Presentation button opens the dashboard in Presentation mode');
+    await story();
+    await page.locator('.lp-cta a[href="app.html#overview"]').click();
+    await page.waitForFunction(() => location.pathname.endsWith('app.html') && document.querySelector('[data-mode="details"]')?.getAttribute('aria-pressed') === 'true');
+    checks.push('Landing: Full results button opens the dashboard in Full details mode');
+    await page.goto(`${base}/?qa=${Date.now()}#results`);
+    await page.waitForFunction(() => location.pathname.endsWith('app.html') && location.hash === '#results');
+    checks.push('Landing: an old dashboard link (/#results) forwards to app.html#results');
+    await page.locator('.fn-story-link').first().click();
+    await page.locator('#lp-title').waitFor();
+    checks.push('Dashboard links back to the project story');
     assert(errors.length === 0, `No browser console/page errors (${errors.length}): ${errors.join(' | ')}`);
     return { status: 'passed', export_status: bundle.status, run_count: bundle.runs.length, sample_count: bundle.samples.length, checks };
 }

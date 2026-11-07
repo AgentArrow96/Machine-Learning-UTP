@@ -59,7 +59,7 @@ const FN_PRES = {
         const i = routes.indexOf(route);
         const link = (r, text, cls) => (r ? `<a class="fn-pres-link ${cls}" href="#${r}">${text}</a>` : '<span></span>');
         const name = r => items.find(x => x.route === r)?.label;
-        return `<nav class="fn-pres-pager" aria-label="Presentation pages">${link(routes[i - 1], `← ${esc(name(routes[i - 1]) || '')}`, 'prev')}${link(routes[i + 1], `${esc(name(routes[i + 1]) || '')} →`, 'next')}</nav>`;
+        return `<nav class="fn-pres-pager" aria-label="Presentation pages">${link(routes[i - 1], `<small>Previous</small>${esc(name(routes[i - 1]) || '')}`, 'prev')}${link(routes[i + 1], `<small>Next</small>${esc(name(routes[i + 1]) || '')}`, 'next')}</nav>`;
     },
 
     summary() {
@@ -109,7 +109,7 @@ const FN_PRES = {
                 { value: num(data.dataset.counts.train), label: 'Training images' },
                 { value: num(data.dataset.counts.val), label: 'Validation images' },
                 { value: num(data.dataset.counts.test), label: 'Test images' },
-                { value: '10 → 3', label: 'Classes', note: 'Original labels to study classes' }
+                { value: '10 to 3', label: 'Classes', note: 'Original labels to study classes' }
             ])
             + card('Source and variables', `<p>Released by the Bina Lab, University of Maryland, Baltimore County, under the CDLA-Permissive 1.0 licence (Rahnemoonfar et al., 2021). The inputs are the red, green and blue values of each pixel (0 to 255). The target is the class of each pixel, stored in an annotation mask.</p>`
                 + FN_PRES.figure('samples.webp', 'Sample FloodNet scenes', 'Sample scenes with their photo, label mask and overlay.', 'fn-pres-narrow'))
@@ -238,7 +238,7 @@ const FN_PRES = {
     limits() {
         const first = comparisonFor('rf', 100);
         return header('limits', 'Conclude with limits', 'What we can claim, and what we cannot.')
-            + card('Limitations', `<ul><li><strong>One event, one region.</strong> A research prototype, not an operational service.</li><li><strong>Repeated ground.</strong> ${num(overlapInfo().target_images.overlapping)} of ${num(overlapInfo().target_images.images)} test images with flooded targets share ground with training, so scores do not predict a new flood.</li><li><strong>Three seeds, one 25% subset.</strong> This shows stability, not statistical significance.</li><li><strong>Low resolution and pixels only.</strong> At 256 px, thin edges can vanish, and pixels do not measure depth or road passability.</li><li><strong>The forest was revised after its first test evaluation</strong> so that both models handle imbalance alike (${pct(mean(first.baseline_scores))} → ${pct(mean(first.variant_scores))} at 100% labels). The change was not tuned on the test split, and the first version is reported, but this is not a fully blind result.</li><li><strong>No hyperparameter search,</strong> so neither score is necessarily a model's best.</li></ul>`)
+            + card('Limitations', `<ul><li><strong>One event, one region.</strong> A research prototype, not an operational service.</li><li><strong>Repeated ground.</strong> ${num(overlapInfo().target_images.overlapping)} of ${num(overlapInfo().target_images.images)} test images with flooded targets share ground with training, so scores do not predict a new flood.</li><li><strong>Three seeds, one 25% subset.</strong> This shows stability, not statistical significance.</li><li><strong>Low resolution and pixels only.</strong> At 256 px, thin edges can vanish, and pixels do not measure depth or road passability.</li><li><strong>The forest was revised after its first test evaluation</strong> so that both models handle imbalance alike (${pct(mean(first.baseline_scores))} to ${pct(mean(first.variant_scores))} at 100% labels). The change was not tuned on the test split, and the first version is reported, but this is not a fully blind result.</li><li><strong>No hyperparameter search,</strong> so neither score is necessarily a model's best.</li></ul>`)
             + `<div class="fn-grid fn-two-col">`
             + card('Conclusions', `<ol><li>Both pipelines produce pixel-level masks of flooded buildings and roads.</li><li>The U-Net clearly outperforms SLIC + RF (${FN_PRES.v('unet', 100, 'minority')} vs ${FN_PRES.v('rf', 100, 'minority')}), costs more to train and predicts faster.</li><li>Accuracy cannot guide this decision. Errors centre on look-alikes, and extra labels matter more for roads than buildings.</li></ol>`)
             + card('Future work', `<ul><li>Test on a flood with no overlap with training.</li><li>Train with the original ten labels, so models learn that water is not a road.</li><li>Give the forest context from neighbouring superpixels.</li><li>Stabilise U-Net training.</li><li>Try targeted labelling of road and water scenes.</li><li>Evaluate with responders.</li></ul>`)

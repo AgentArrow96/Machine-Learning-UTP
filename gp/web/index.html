@@ -3,58 +3,319 @@
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <meta name="description" content="A reproducible FloodNet study comparing SLIC + Random Forest and a CUDA-trained ResNet-18 U-Net under two labelled-data budgets and three training seeds." />
-    <title>FloodNet: Flooded Infrastructure Results</title>
+    <meta name="description" content="Why flooded roads and buildings matter after a hurricane, how we taught two models to find them in aerial photos, and what we found." />
+    <title>FloodNet: Reading the Flood</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=Kalam:wght@400;700&amp;display=swap" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
-    <link rel="stylesheet" href="assets/css/main.css?v=8.3" />
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-    <script defer src="assets/js/charts.js?v=8.3"></script>
-    <script defer src="assets/js/math.js?v=8.3"></script>
-    <script defer src="assets/js/viewer.js?v=8.3"></script>
-    <script defer src="assets/js/walkthrough.js?v=8.3"></script>
-    <script defer src="assets/js/preprocessing.js?v=8.3"></script>
-    <script defer src="assets/js/presentation.js?v=8.3"></script>
-    <script defer src="assets/js/app.js?v=8.3"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&amp;display=swap" />
+    <link rel="stylesheet" href="assets/css/landing.css?v=2.2" />
+    <script src="assets/js/landing.js?v=2.2"></script>
 </head>
 <body>
-    <a class="fn-skip" href="#fn-main">Skip to content</a>
-    <div class="fn-app">
-        <aside class="fn-sidebar" id="fn-sidebar">
-            <div class="fn-brand">
-                <p class="fn-brand-title">FloodNet</p>
-                <p>TEB3123 · Group 3 · Results explorer</p>
-                <p class="fn-brand-status"><span class="fn-live-dot" aria-hidden="true"></span><span id="fn-export-status">Loading export…</span></p>
-            </div>
-            <div class="fn-nav-panel fn-view-panel">
-                <p class="fn-nav-label" id="fn-view-label">MODE</p>
-                <div class="fn-seg fn-view-seg" role="group" aria-labelledby="fn-view-label">
-                    <button type="button" data-mode="details" aria-pressed="true">Full details</button>
-                    <button type="button" data-mode="presentation" aria-pressed="false">Presentation</button>
+    <a class="lp-skip" href="#why">Skip to the story</a>
+    <button type="button" class="lp-theme" id="lp-theme" aria-label="Switch to light mode" title="Light / dark">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="lp-moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/><g class="lp-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
+    </button>
+
+    <header class="lp-top">
+        <a class="lp-brand" href="./">FloodNet</a>
+        <nav class="lp-nav" aria-label="Story sections">
+            <a href="#why"><span>01</span>Why care</a>
+            <a href="#data"><span>02</span>The data</a>
+            <a href="#how"><span>03</span>How we did it</a>
+            <a href="#found"><span>04</span>What we found</a>
+            <a href="#impact"><span>05</span>So what?</a>
+            <a href="#limits"><span>06</span>Limits</a>
+        </nav>
+        <a class="lp-top-cta" href="app.html#summary">Open the dashboard</a>
+    </header>
+
+    <main>
+        <section class="lp-hero" aria-labelledby="lp-title">
+            <div class="lp-hero-copy">
+                <p class="lp-eyebrow">After the storm, before the rescue</p>
+                <h1 id="lp-title"><em>Reading</em> the flood</h1>
+                <p class="lp-lede">After Hurricane Harvey, drones photographed whole neighbourhoods under water. Could a computer point out, pixel by pixel, which <span class="lp-building">buildings</span> and which <span class="lp-road">roads</span> are flooded, and how much labelled data would it need?</p>
+                <div class="lp-actions">
+                    <a class="lp-btn lp-btn-strong" href="#why">Start the story</a>
+                    <a class="lp-btn" href="app.html#overview">Skip to the results</a>
                 </div>
-                <p class="fn-view-note" id="fn-view-note"></p>
             </div>
-            <nav class="fn-nav-panel" id="fn-nav" aria-label="Project sections"></nav>
-            <div class="fn-nav-panel fn-sidebar-note">
-                <p class="fn-nav-label">A CONTROLLED COMPARISON</p>
-                <p id="fn-sidebar-copy">Three approaches. Two data budgets. Three seeds. One shared protocol.</p>
-                <div class="fn-sdgs"><span>SDG 11</span><span>SDG 13</span></div>
+            <figure class="lp-stack" id="lp-stack">
+                <div class="lp-stack-view">
+                    <div class="lp-stack-scene">
+                        <div class="lp-plane lp-plane-photo"><img src="data/landing/stack-photo.webp" alt="Aerial photo of a flooded street running diagonally through a Houston neighbourhood after Hurricane Harvey" /></div>
+                        <div class="lp-plane lp-plane-slic"><img src="data/landing/stack-slic.webp" alt="" /></div>
+                        <div class="lp-plane lp-plane-mask"><img src="data/landing/stack-mask.webp" alt="" /></div>
+                        <i class="lp-post lp-post-a" aria-hidden="true"></i><i class="lp-post lp-post-b" aria-hidden="true"></i><i class="lp-post lp-post-c" aria-hidden="true"></i><i class="lp-post lp-post-d" aria-hidden="true"></i>
+                    </div>
+                </div>
+                <figcaption>
+                    <ol class="lp-stack-legend">
+                        <li><span class="lp-key lp-key-mask"></span>Layer 2 · the answer: <b class="lp-building">flooded buildings</b> and <b class="lp-road">flooded roads</b></li>
+                        <li><span class="lp-key lp-key-slic"></span>Layer 1 · about 250 SLIC patches the forest judges one by one</li>
+                        <li><span class="lp-key lp-key-photo"></span>Layer 0 · the drone photo</li>
+                    </ol>
+                    <p class="lp-meta">FloodNet test image 7294 · Hurricane Harvey, 2017</p>
+                </figcaption>
+            </figure>
+        </section>
+
+        <section class="lp-section" id="why" aria-labelledby="why-title">
+            <div class="lp-spread">
+                <div class="lp-spread-head">
+                    <p class="lp-kicker">01 · Why should we care</p>
+                    <h2 id="why-title">Floods are the most common disaster.</h2>
+                    <p class="lp-sub">Before anyone can help, someone has to find out what is under water.</p>
+                    <p class="lp-source">Source: UN Office for Disaster Risk Reduction (2020), <em>The human cost of disasters 2000–2019</em>.</p>
+                </div>
+                <div class="lp-stats">
+                    <div class="lp-stat"><strong>41%</strong><span>of recorded disaster events from 2000 to 2019 were floods</span></div>
+                    <div class="lp-stat"><strong>1.6 billion</strong><span>people were affected by those floods</span></div>
+                    <div class="lp-stat"><strong>2017</strong><span>Hurricane Harvey flooded Houston, Texas; our photos come from there</span></div>
+                </div>
             </div>
-        </aside>
-        <button type="button" class="fn-mobile-menu" aria-controls="fn-sidebar" aria-expanded="false" aria-label="Open navigation"><span aria-hidden="true">☰</span></button>
-        <main class="fn-main" id="fn-main" tabindex="-1">
-            <div class="fn-content">
-                <div id="fn-page" class="fn-page"><div class="fn-loading">Reading the experiment export…</div></div>
-                <footer class="fn-footer">
-                    <span>Flooded infrastructure, at pixel level. Research prototype, Hurricane Harvey imagery.</span>
-                    <span>Static explorer · no model server required</span>
-                </footer>
+
+            <div class="lp-rail-head"><p class="lp-hint">Swipe or scroll sideways</p><div class="lp-rail-nav"><button type="button" data-rail-prev="why-rail" aria-label="Previous cards"><svg class="fn-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><button type="button" data-rail-next="why-rail" aria-label="Next cards"><svg class="fn-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button></div></div>
+            <div class="lp-rail" id="why-rail" tabindex="0" aria-label="Why the problem matters">
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/roads.webp" alt="A flooded road curving between houses" loading="lazy" /></div><p class="lp-meta">Frame 7611 · test split</p><div class="lp-plate-body"><h3><span class="lp-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14M6 17l1.5-5h9L18 17"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/><path d="M3 21c2-1.5 4 1.5 6 0s4 1.5 6 0 4 1.5 6 0"/></svg></span>Roads go under</h3><p>A flooded road can cut off a neighbourhood. Rescue teams need to know which routes are still passable.</p></div></article>
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/homes.webp" alt="Houses surrounded by floodwater" loading="lazy" /></div><p class="lp-meta">Frame 7423 · test split</p><div class="lp-plate-body"><h3><span class="lp-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v9h14v-9"/><path d="M10 19v-5h4v5"/></svg></span>Homes need checks</h3><p>Flooded buildings may hold people who need help, and they will need inspection once the water goes down.</p></div></article>
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/many.webp" alt="A grid of twelve aerial flood photos" loading="lazy" /></div><p class="lp-meta">12 frames · test split</p><div class="lp-plate-body"><h3><span class="lp-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>Too many photos</h3><p>Drones bring back thousands of images in a day. Reading every one by hand takes time responders do not have.</p></div></article>
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/labelled.webp" alt="One photo, left half plain, right half with flooded buildings painted amber and flooded roads painted teal" loading="lazy" /></div><p class="lp-meta">Frame 7301 · test split · label on the right half</p><div class="lp-plate-body"><h3><span class="lp-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="M13 7l4 4"/></svg></span>Labels are slow</h3><p>Teaching a computer means someone paints every flooded pixel by hand. We test what happens with only a quarter of those labels.</p></div></article>
             </div>
-        </main>
-    </div>
-    <noscript>This results explorer requires JavaScript. Evaluation tables remain available as CSV files in the exported data bundle.</noscript>
+        </section>
+
+        <section class="lp-section" aria-labelledby="who-title">
+            <p class="lp-kicker">Who is it for</p>
+            <h2 id="who-title">Meet the people who need the map.</h2>
+            <p class="lp-sub">Each of them faces a decision a flood map could inform.</p>
+            <div class="lp-rail-head"><p class="lp-hint">Swipe or scroll sideways</p><div class="lp-rail-nav"><button type="button" data-rail-prev="who-rail" aria-label="Previous people"><svg class="fn-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><button type="button" data-rail-next="who-rail" aria-label="Next people"><svg class="fn-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button></div></div>
+            <div class="lp-rail" id="who-rail" tabindex="0" aria-label="Stakeholders">
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/authorities.webp" alt="Flood water reaching a row of houses beside power lines" loading="lazy" /></div><p class="lp-meta">Frame 7333 · test split</p><div class="lp-plate-body"><h3>Disaster authorities</h3><p><strong>Decide:</strong> where to send assessment and help first.</p></div></article>
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/responders.webp" alt="Flooded streets between houses" loading="lazy" /></div><p class="lp-meta">Frame 7590 · test split</p><div class="lp-plate-body"><h3>Emergency teams</h3><p><strong>Decide:</strong> which roads and neighbourhoods look affected.</p></div></article>
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/planners.webp" alt="A road bridge over a swollen river" loading="lazy" /></div><p class="lp-meta">Frame 7291 · test split</p><div class="lp-plate-body"><h3>City planners</h3><p><strong>Decide:</strong> which buildings and roads to inspect after the event.</p></div></article>
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/researchers.webp" alt="A neighbourhood next to a wide flooded area" loading="lazy" /></div><p class="lp-meta">Frame 7464 · test split</p><div class="lp-plate-body"><h3>Data teams</h3><p><strong>Decide:</strong> which model to use and how many images to label.</p></div></article>
+            </div>
+            <div class="lp-tags"><span>SDG 11 · Sustainable cities and communities</span><span>SDG 13 · Climate action</span><span>UTP Grand Challenge · Sustainable living</span></div>
+        </section>
+
+        <section class="lp-section" id="data" aria-labelledby="data-title">
+            <p class="lp-kicker">02 · What we work with</p>
+            <h2 id="data-title">One storm, 2,343 aerial photos.</h2>
+            <p class="lp-sub">FloodNet: drone photos taken after Hurricane Harvey, each with a hand-painted label for every pixel. We use the official split.</p>
+            <div class="lp-split">
+                <div class="lp-scale" aria-hidden="true"><span>0</span><span>500</span><span>1,000</span><span>1,500</span><span>2,000</span><span>2,343</span></div>
+                <div class="lp-split-bar" role="img" aria-label="Training 1,445 images, validation 450, test 448">
+                    <span style="flex:1445"><strong>1,445</strong> train</span><span style="flex:450"><strong>450</strong> validate</span><span style="flex:448"><strong>448</strong> test</span>
+                </div>
+                <p>The models learn from the training photos, pick their best version on validation, and are scored once on the test photos they never saw.</p>
+            </div>
+
+            <div class="lp-analogy">
+                <p class="lp-kicker">From ten labels to three</p>
+                <p class="lp-big-line">The data has ten kinds of label. <span class="lp-accent">We only ask two questions.</span></p>
+                <div class="lp-taxonomy">
+                    <ol class="lp-tax-source" aria-label="The ten original labels">
+                        <li><code>0</code>Background</li>
+                        <li class="lp-to-building"><code>1</code>Building flooded</li>
+                        <li><code>2</code>Building dry</li>
+                        <li class="lp-to-road"><code>3</code>Road flooded</li>
+                        <li><code>4</code>Road dry</li>
+                        <li><code>5</code>Water</li>
+                        <li><code>6</code>Tree</li>
+                        <li><code>7</code>Vehicle</li>
+                        <li><code>8</code>Pool</li>
+                        <li><code>9</code>Grass</li>
+                    </ol>
+                    <svg class="lp-tax-links" viewBox="0 0 160 392" preserveAspectRatio="none" aria-hidden="true">
+                        <path class="lp-link-other" d="M0 16 C80 16 80 256 160 256"/>
+                        <path class="lp-link-building" d="M0 56 C80 56 80 56 160 56"/>
+                        <path class="lp-link-other" d="M0 96 C80 96 80 256 160 256"/>
+                        <path class="lp-link-road" d="M0 136 C80 136 80 136 160 136"/>
+                        <path class="lp-link-other" d="M0 176 C80 176 80 256 160 256"/>
+                        <path class="lp-link-other" d="M0 216 C80 216 80 256 160 256"/>
+                        <path class="lp-link-other" d="M0 256 C80 256 80 256 160 256"/>
+                        <path class="lp-link-other" d="M0 296 C80 296 80 256 160 256"/>
+                        <path class="lp-link-other" d="M0 336 C80 336 80 256 160 256"/>
+                        <path class="lp-link-other" d="M0 376 C80 376 80 256 160 256"/>
+                    </svg>
+                    <ol class="lp-tax-target" aria-label="The three classes we predict">
+                        <li class="lp-chip-building" style="--y:56px">Flooded building</li>
+                        <li class="lp-chip-road" style="--y:136px">Flooded road</li>
+                        <li class="lp-chip-other" style="--y:256px">Other</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="lp-callout">
+                <div><p class="lp-kicker">A needle in a haystack</p><h3>Only <strong>3.5%</strong> of the test pixels are flooded buildings or roads.</h3>
+                <p>So a model that never finds a single flood still scores <strong>96.5% accuracy</strong>. Accuracy hides the very thing we care about. That is why we score each model by <strong>IoU</strong>: how much its flooded area overlaps the real one.</p></div>
+                <figure class="lp-needle" id="lp-needle">
+                    <div class="lp-needle-view">
+                        <div class="lp-needle-scene">
+                            <img class="lp-needle-photo" src="data/landing/needle-photo.webp" alt="A flooded street of houses; its flooded buildings (amber) and flooded roads (teal) lift off the photo" loading="lazy" />
+                            <img class="lp-needle-mask" src="data/landing/needle-mask.webp" alt="" loading="lazy" />
+                        </div>
+                    </div>
+                    <figcaption class="lp-meta">Frame 7301 · the flooded pixels lifted off the rest of the photo</figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <section class="lp-section" id="how" aria-labelledby="how-title">
+            <p class="lp-kicker">03 · How we did it</p>
+            <h2 id="how-title">Same photos, two ways of looking.</h2>
+            <p class="lp-sub">First we cleaned the data the same way for both, then built a traditional model and a deep-learning model.</p>
+            <ol class="lp-steps" aria-label="Data preparation">
+                <li><strong>Audit</strong><span>every photo matched to its label; no missing or broken files</span></li>
+                <li><strong>Fix orientation</strong><span>57 photos were stored rotated</span></li>
+                <li><strong>Resize to 256 px</strong><span>keeping the shape; the padding is never scored</span></li>
+                <li><strong>Ten labels to three</strong><span>building, road, other</span></li>
+                <li><strong>25% and 100%</strong><span>of the training labels, to test what more labels buy</span></li>
+            </ol>
+            <div class="lp-versus">
+                <article class="lp-versus-card lp-rf">
+                    <span class="lp-tag">Traditional machine learning</span>
+                    <h3>SLIC + Random Forest</h3>
+                    <div class="lp-tiles" id="lp-tiles" aria-hidden="true"></div>
+                    <p class="lp-stage-note">Each patch is judged on its own, side by side on one flat plane.</p>
+                    <p>Groups the photo into about 250 patches of similar pixels, describes each patch with 22 hand-picked numbers for colour and texture, then lets 150 decision trees vote on its label.</p>
+                    <p class="lp-formula"><strong>Features:</strong> chosen by us</p>
+                    <div class="lp-mat"><img src="data/presentation/rf_pipeline.webp" alt="SLIC + Random Forest pipeline: photo, superpixels, region features, forest vote" loading="lazy" /></div>
+                </article>
+                <article class="lp-versus-card lp-unet">
+                    <span class="lp-tag">Deep learning</span>
+                    <h3>U-Net</h3>
+                    <svg class="lp-frustum" viewBox="0 0 640 230" role="img" aria-label="U-Net shape: the encoder shrinks a 256-pixel photo step by step to 8 pixels, the decoder grows it back to a 256-pixel mask, and skip connections carry detail across">
+                        <g class="lp-skips" fill="none" stroke="#38BDF8" stroke-width="1.5" stroke-dasharray="4 6">
+                            <path d="M32 20 C32 -10 608 -10 608 20"/>
+                            <path d="M110 46 C110 6 530 6 530 46"/>
+                            <path d="M180 66 C180 32 460 32 460 66"/>
+                            <path d="M240 82 C240 54 400 54 400 82"/>
+                            <path d="M290 94 C290 74 350 74 350 94"/>
+                        </g>
+                        <g class="lp-layers" fill="#5A63B8" stroke="rgba(239,236,230,.32)">
+                            <image href="data/landing/stack-photo.webp" width="48" height="160" preserveAspectRatio="none" transform="matrix(1 -0.6667 0 1 8 56)"/>
+                            <polygon class="lp-face-in" points="8,56 56,24 56,184 8,216"/>
+                            <polygon class="lp-enc" points="100,58 124,46 124,154 100,166"/>
+                            <polygon class="lp-enc" points="170,74 196,64 196,136 170,146"/>
+                            <polygon class="lp-enc" points="232,88 260,80 260,122 232,130"/>
+                            <polygon class="lp-enc" points="284,98 314,92 314,112 284,118"/>
+                            <polygon class="lp-mid" points="314,104 340,100 340,110 314,114"/>
+                            <polygon class="lp-dec" points="346,98 368,92 368,112 346,118"/>
+                            <polygon class="lp-dec" points="394,88 414,80 414,122 394,130"/>
+                            <polygon class="lp-dec" points="452,74 470,64 470,136 452,146"/>
+                            <polygon class="lp-dec" points="522,58 538,46 538,154 522,166"/>
+                            <rect class="lp-face-base" width="48" height="160" transform="matrix(1 -0.6667 0 1 584 56)"/>
+                            <image href="data/landing/stack-mask.webp" width="48" height="160" preserveAspectRatio="none" transform="matrix(1 -0.6667 0 1 584 56)"/>
+                            <polygon class="lp-face-out" points="584,56 632,24 632,184 584,216"/>
+                        </g>
+                        <g class="lp-frustum-labels" fill="#9BA5B0" font-size="12" text-anchor="middle">
+                            <text x="32" y="228">256</text><text x="112" y="228">128</text><text x="183" y="228">64</text><text x="246" y="228">32</text><text x="299" y="228">16</text><text x="327" y="228">8</text><text x="357" y="228">16</text><text x="404" y="228">32</text><text x="461" y="228">64</text><text x="530" y="228">128</text><text x="608" y="228">256</text>
+                        </g>
+                    </svg>
+                    <p class="lp-stage-note">Encoder shrinks the photo to 8 px; the decoder grows it back, with skip connections carrying detail across.</p>
+                    <p>A neural network that starts from a ResNet-18 already trained on everyday photos, then learns its own features from every pixel and paints a label for each one.</p>
+                    <p class="lp-formula"><strong>Features:</strong> learned from the data</p>
+                    <div class="lp-mat"><img src="data/presentation/unet.webp" alt="U-Net architecture: an encoder that shrinks the image and a decoder that rebuilds a full-size mask" loading="lazy" /></div>
+                </article>
+            </div>
+            <div class="lp-fair">
+                <h3>A fair fight</h3>
+                <p>Both models see the same photos, the same 25% subset and the same test set. Both give the rare flood classes the same extra weight, so neither wins just by handling the imbalance differently. Each setup is trained three times (seeds 42, 43, 44) so one lucky run cannot decide the result.</p>
+            </div>
+        </section>
+
+        <section class="lp-section" id="found" aria-labelledby="found-title">
+            <p class="lp-kicker">04 · What we found</p>
+            <h2 id="found-title">The U-Net sees the flood twice as well.</h2>
+            <p class="lp-sub">Minority IoU: the average overlap for flooded buildings and flooded roads on the 448 test photos (mean of three seeds).</p>
+            <div class="lp-results">
+                <div class="lp-headline">
+                    <div class="lp-number lp-unet-text"><strong data-check="unet-100" data-count>63.3%</strong><span>U-Net, all labels</span></div>
+                    <div class="lp-number lp-rf-text"><strong data-check="rf-100" data-count>31.8%</strong><span>SLIC + Random Forest, all labels</span></div>
+                    <p>Every U-Net run beat every forest run.</p>
+                </div>
+                <div class="lp-bars" role="table" aria-label="Minority IoU by model and label budget">
+                    <div role="row" class="lp-bar-group"><span role="rowheader">25% labels</span>
+                        <div role="cell" class="lp-bar"><b>U-Net <em data-check="unet-25" data-count>52.3%</em></b><span class="lp-track"><i class="lp-unet-bg" style="width:52.3%"></i></span></div>
+                        <div role="cell" class="lp-bar"><b>SLIC + RF <em data-check="rf-25" data-count>27.6%</em></b><span class="lp-track"><i class="lp-rf-bg" style="width:27.6%"></i></span></div></div>
+                    <div role="row" class="lp-bar-group"><span role="rowheader">100% labels</span>
+                        <div role="cell" class="lp-bar"><b>U-Net <em data-count>63.3%</em></b><span class="lp-track"><i class="lp-unet-bg" style="width:63.3%"></i></span></div>
+                        <div role="cell" class="lp-bar"><b>SLIC + RF <em data-count>31.8%</em></b><span class="lp-track"><i class="lp-rf-bg" style="width:31.8%"></i></span></div></div>
+                    <div class="lp-ticks" aria-hidden="true"><span>0</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+                    <p class="lp-axis">Bar length = IoU on a 0–100% scale</p>
+                </div>
+            </div>
+            <div class="lp-insights">
+                <article><span class="lp-insight-num">+<strong data-check="road-gain" data-count>18.1</strong> pts</span><h3>More labels help roads most</h3><p>Four times the labels lift the U-Net's flooded-road IoU from 40.3% to 58.4%, but buildings only by +3.9 points. Roads next to open water are the hard part.</p></article>
+                <article><span class="lp-insight-num"><strong data-check="unet-ms" data-count>5.6</strong> ms</span><h3>Fast where it counts</h3><p>The U-Net labels a photo in about 5.6 ms on a laptop GPU, nine times faster than the forest's 52.3 ms.</p></article>
+                <article><span class="lp-insight-num">water ≠ road</span><h3>The forest confuses look-alikes</h3><p>Judged by colour and texture alone, open floodwater looks like a flooded road. Most of the forest's false alarms land there.</p></article>
+            </div>
+            <figure class="lp-figure" id="lp-scenes">
+                <div class="lp-figure-plate">
+                    <img src="data/presentation/scenes.webp" alt="Six test scenes: photo, true label, SLIC + RF prediction and U-Net prediction" loading="lazy" />
+                    <span class="lp-loupe" aria-hidden="true"></span>
+                </div>
+                <figcaption>Six test scenes, chosen by what they contain, not by how well the models did. Columns: photo, true label, SLIC + RF, U-Net. Amber is flooded building, teal is flooded road. <span class="lp-loupe-hint">Hover to magnify.</span></figcaption>
+            </figure>
+        </section>
+
+        <section class="lp-section lp-impact" id="impact" aria-labelledby="impact-title">
+            <p class="lp-kicker">05 · So what? Sustainability</p>
+            <h2 id="impact-title">A first-pass flood map,<br />checked by people.</h2>
+            <p class="lp-sub">What the results support for the people who need the map. Each point comes with the assumption it rests on.</p>
+            <div class="lp-feature-grid">
+                <article class="lp-feature"><h3><span class="lp-feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg></span>Map first</h3><p>Use the U-Net, not the forest, to draw a first map of likely flooded buildings and roads.</p><p class="lp-assume">Assumes a GPU is available.</p></article>
+                <article class="lp-feature"><h3><span class="lp-feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6 1.5 0 2.8.3 3.8.9"/><path d="m15 18 2 2 5-5"/></svg></span>People check</h3><p>It finds <strong>89.5%</strong> of flooded-building and <strong>79.0%</strong> of flooded-road pixels, but only about 7 in 10 of the pixels it flags are truly flooded. Treat it as a guide, not a dispatch order.</p><p class="lp-assume">Assumes someone reviews the map.</p></article>
+                <article class="lp-feature"><h3><span class="lp-feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="M13 7l4 4"/></svg></span>Label roads first</h3><p>When annotation time is short, spend it on roads, especially near water. That is where extra labels paid off most.</p><p class="lp-assume">One subset, three seeds; not yet tested directly.</p></article>
+            </div>
+            <div class="lp-benefits">
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/river.webp" alt="A neighbourhood beside a wide flooded river" loading="lazy" /></div><p class="lp-meta">Frame 7339 · test split</p><div class="lp-plate-body"><h3>A faster first look</h3><p>About 2.5 s for all 448 test photos.</p><span class="lp-sdg">SDG 11.5 · fewer disaster losses</span><small>Not measured: time saved in a real response.</small></div></article>
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/street.webp" alt="Flooded streets between houses" loading="lazy" /></div><p class="lp-meta">Frame 7320 · test split</p><div class="lp-plate-body"><h3>Focused inspections</h3><p>Most flooded-infrastructure pixels are flagged, so crews can start where it matters.</p><span class="lp-sdg">SDG 11 · safer communities</span><small>Not measured: whether crews arrive sooner.</small></div></article>
+                <article class="lp-plate"><div class="lp-plate-img"><img src="data/landing/edge.webp" alt="Houses at the edge of open floodwater" loading="lazy" /></div><p class="lp-meta">Frame 7457 · test split</p><div class="lp-plate-body"><h3>Less labelling next time</h3><p>Evidence on where more labels help and where they do not.</p><span class="lp-sdg">SDG 13.1 · resilience to climate hazards</span><small>Not measured: actual annotation hours.</small></div></article>
+            </div>
+            <div class="lp-note-card">
+                <h3>What we do not claim</h3>
+                <p>We measured pixels, not lives saved, damage avoided or response time; those need a field study with responders. A wrong mask has a cost too: a false alarm can send a team to a dry road, and a missed road could send one into water. That is why a person stays in the loop. The photos come from one suburb in Texas, so the results should not be assumed to hold elsewhere, including Malaysian cities, without local data.</p>
+            </div>
+        </section>
+
+        <section class="lp-section" id="limits" aria-labelledby="limits-title">
+            <p class="lp-kicker">06 · Honest limits and conclusion</p>
+            <h2 id="limits-title">Knowing the score is only<br />the beginning.</h2>
+            <div class="lp-note-card lp-limits">
+                <h3>Why do the limits matter?</h3>
+                <ul>
+                    <li><strong>One flood, one place.</strong> Every photo is from Hurricane Harvey.</li>
+                    <li><strong><span data-check="overlap">357</span> of 448 test photos</strong> share ground with a training photo, so the test mostly measures areas the models have already seen, not a new flood.</li>
+                    <li><strong>Pixels, not depth.</strong> The maps say nothing about water depth, area or whether a road can be driven.</li>
+                    <li><strong>A research prototype,</strong> not a working disaster-response service, with no hyperparameter search.</li>
+                </ul>
+            </div>
+            <div class="lp-feature-grid">
+                <article class="lp-feature"><h3><span class="lp-feature-icon lp-num" aria-hidden="true">1</span>Develop</h3><p>Both pipelines were built end to end and produce a flood mask for every test photo.</p></article>
+                <article class="lp-feature"><h3><span class="lp-feature-icon lp-num" aria-hidden="true">2</span>Evaluate</h3><p>The U-Net clearly wins: 63.3% vs 31.8% at all labels and 52.3% vs 27.6% at a quarter. It trains slower (about 3.2 min) but predicts nine times faster.</p></article>
+                <article class="lp-feature"><h3><span class="lp-feature-icon lp-num" aria-hidden="true">3</span>Interpret</h3><p>Accuracy cannot guide this choice. Errors centre on look-alikes, and extra labels are worth more for roads than for buildings.</p></article>
+            </div>
+            <div class="lp-next"><p class="lp-kicker">Next steps</p><div class="lp-tags"><span>Test on a different flood</span><span>Train with all ten labels</span><span>Give the forest neighbourhood context</span><span>Targeted road labelling</span><span>Trial with responders</span></div></div>
+        </section>
+
+        <section class="lp-cta" aria-labelledby="cta-title">
+            <h2 id="cta-title">Ready to explore the flood?</h2>
+            <p>Every number above comes from the dashboard. Look at any test photo, compare the two models side by side, or follow the short presentation.</p>
+            <div class="lp-actions">
+                <a class="lp-btn lp-btn-strong" href="app.html#overview">Explore the full results</a>
+                <a class="lp-btn" href="app.html#summary">Presentation mode</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="lp-footer">
+        <p><strong>TEB3123 Machine Learning · Group 3</strong>: Ammar Qayyim bin Mohd Adam, Ariff bin Azemi, Muhammad Haikal bin Man Ghazali, Wan Aisar binti Wan Aziz and Lim Jia Chyuen.</p>
+        <p>Photos: FloodNet-Supervised v1.0 (Rahnemoonfar et al., IEEE Access, 2021), released under the <a href="https://cdla.io/permissive-1-0/" target="_blank" rel="noopener noreferrer">CDLA-Permissive-1.0</a> licence. <a href="https://github.com/BinaLab/FloodNet-Supervised_v1.0" target="_blank" rel="noopener noreferrer">Dataset</a></p>
+        <a class="lp-back" href="../" id="lp-back">Back to the lectures</a>
+    </footer>
 </body>
 </html>

@@ -37,8 +37,8 @@ const FN_VIEWER = {
             + `<button type="button" class="fn-btn" data-action="download-chart">Save SVG</button></div>`
             + `<button type="button" class="fn-btn fn-lightbox-close" data-viewer="close" aria-label="Close">✕ Close</button></div>`
             + `<div class="fn-lightbox-stage"><div class="fn-lightbox-content"></div>`
-            + `<button type="button" class="fn-lightbox-nav prev" data-viewer="prev" aria-label="Previous panel">‹</button>`
-            + `<button type="button" class="fn-lightbox-nav next" data-viewer="next" aria-label="Next panel">›</button></div>`
+            + `<button type="button" class="fn-lightbox-nav prev" data-viewer="prev" aria-label="Previous panel"><svg class="fn-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>`
+            + `<button type="button" class="fn-lightbox-nav next" data-viewer="next" aria-label="Next panel"><svg class="fn-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button></div>`
             + `<p class="fn-lightbox-hint"></p>`;
         document.body.append(dialog);
         FN_VIEWER.dialog = dialog;
@@ -113,7 +113,7 @@ const FN_VIEWER = {
         dialog.querySelector('[data-chart-tools]').hidden = true;
         const many = FN_VIEWER.items.length > 1;
         dialog.querySelectorAll('.fn-lightbox-nav').forEach(button => { button.hidden = !many; });
-        dialog.querySelector('.fn-lightbox-hint').textContent = `Scroll or use + / − to zoom · drag to pan · double-click to zoom in${many ? ' · ← / → flips panels and keeps the same view' : ''} · Esc closes`;
+        dialog.querySelector('.fn-lightbox-hint').textContent = `Scroll or use + / − to zoom · drag to pan · double-click to zoom in${many ? ' · the left and right arrow keys flip panels and keeps the same view' : ''} · Esc closes`;
         if (!dialog.open) dialog.showModal();
         FN_VIEWER.show(FN_VIEWER.items.indexOf(trigger));
     },

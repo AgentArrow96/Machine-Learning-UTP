@@ -38,7 +38,7 @@ const FN_PREP = {
         const s = d.steps;
         const share = (part, whole) => pct(part / whole, 2);
         const strataLabels = { both: 'Both targets', building: 'Building only', road: 'Road only', neither: 'Neither target' };
-        const strataBars = (counts, total) => Object.keys(strataLabels).map(k => ({ label: strataLabels[k], value: counts[k] / total, text: `${num(counts[k])} (${pct(counts[k] / total)})`, colour: k === 'neither' ? '#94a3b8' : '#0891b2', tip: [`${num(counts[k])} images`, strataLabels[k], pct(counts[k] / total, 2)] }));
+        const strataBars = (counts, total) => Object.keys(strataLabels).map(k => ({ label: strataLabels[k], value: counts[k] / total, text: `${num(counts[k])} (${pct(counts[k] / total)})`, colour: k === 'neither' ? '#9BA5B0' : '#0B6E8C', tip: [`${num(counts[k])} images`, strataLabels[k], pct(counts[k] / total, 2)] }));
         const totalPairs = s.pairing.pairs;
         const resolution = s.resolution;
         return [
@@ -73,7 +73,7 @@ const FN_PREP = {
                 figures: s.duplicates.examples.map((e, i) => `<div class="fn-prep-pair">${e.urls.map((u, j) => self.figure(u, `${esc(e.ids[j])}`, `Near-duplicate candidate ${e.ids[j]}`, `dup-${i}`)).join('')}<p class="fn-small">Hash distance ${e.distance}${e.cross_split ? ' · <strong>different splits</strong>' : ''}</p></div>`).join(''),
                 text: `<ul class="fn-check-list">${self.check(s.duplicates.exact_groups === 0, `${s.duplicates.exact_groups} exact duplicates (identical file hashes)`)}</ul>`
                     + `<p>A coarse 8×8 picture hash flags <strong>${num(s.duplicates.near_candidates)}</strong> pairs that look almost the same, ${num(s.duplicates.near_cross_split)} of them across splits. A hash distance of 0 means the tiny 8×8 thumbnails match, not the photos: these are consecutive drone frames of the same street taken a moment apart. They were reviewed rather than deleted (the three closest pairs of different scenes are shown).</p>`
-                    + `<p>Shared ground between training and test frames is real, though, so it was measured properly with keypoint matching: see <a href="#dataset">Dataset → Do test scenes also appear in training?</a></p>`
+                    + `<p>Shared ground between training and test frames is real, though, so it was measured properly with keypoint matching: see <a href="#dataset">Dataset, “Do test scenes also appear in training?”</a></p>`
                     + `<div class="fn-callout"><strong>Images removed: ${s.duplicates.removed}.</strong> No check failed, so nothing needed cleaning; the official splits are kept exactly as published.</div>`
             },
             {
@@ -86,7 +86,7 @@ const FN_PREP = {
             },
             {
                 title: 'Two photo sizes, one model input',
-                figures: s.resize.sizes.map(x => self.figure(x.padded, `${num(x.count)} photos at ${x.size[0]}×${x.size[1]} → ${x.geometry.width}×${x.geometry.height} inside 256×256 (hatched = padding)`, `Padded model input for a ${x.size[0]}×${x.size[1]} photo`, 'sizes', true)).join(''),
+                figures: s.resize.sizes.map(x => self.figure(x.padded, `${num(x.count)} photos at ${x.size[0]}×${x.size[1]} to ${x.geometry.width}×${x.geometry.height} inside 256×256 (hatched = padding)`, `Padded model input for a ${x.size[0]}×${x.size[1]} photo`, 'sizes', true)).join(''),
                 two: true,
                 text: `<p>Every photo is shrunk to fit a <strong>${s.resize.size}×${s.resize.size}</strong> frame without stretching. Photos use ${esc(s.resize.rgb_resampling)} resampling; annotations use ${esc(s.resize.mask_resampling)}-neighbour so no in-between label is invented.</p>`
                     + `<p>The leftover rows are padding with label ${s.resize.padding_label}, which is ignored in training and scoring.</p>`
@@ -97,7 +97,7 @@ const FN_PREP = {
                     label: c.name, value: s.remap.processed_train_pixels[i] / s.remap.processed_train_pixels.reduce((a, b) => a + b, 0),
                     colour: c.colour, emphasis: i > 0, tip: [pct(s.remap.processed_train_pixels[i] / s.remap.processed_train_pixels.reduce((a, b) => a + b, 0), 2), c.name, `${num(s.remap.processed_train_pixels[i])} pixels at 256 px`]
                 })), { ...options, rowHeight: 34, label: 'Processed training class shares', note: `Targets are ${pct((s.remap.processed_train_pixels[1] + s.remap.processed_train_pixels[2]) / s.remap.processed_train_pixels.reduce((a, b) => a + b, 0))} of training pixels` }), { heading: 'h3' }),
-                text: `<p>Only two original classes are targets: <strong>building flooded (ID 1) → flooded building</strong> and <strong>road flooded (ID 3) → flooded road</strong>. The other eight, including open water, become "Other".</p>`
+                text: `<p>Only two original classes are targets: <strong>building flooded (ID 1) becomes flooded building</strong> and <strong>road flooded (ID 3) becomes flooded road</strong>. The other eight, including open water, become "Other".</p>`
                     + `<p>This is where the pixel-level class imbalance comes from. It is handled during training, not by changing the data: see <a href="#imbalance">Class imbalance</a>.</p>`
             },
             {
@@ -122,7 +122,7 @@ const FN_PREP = {
                 title: 'Draw the 25% subset fairly',
                 figures: chartBlock('Training images per stratum: 100% vs 25%', options => FN_CHARTS.bars([
                     ...strataBars(s.budgets.strata['100'], s.budgets.counts['100']).map(b => ({ ...b, label: `100% · ${b.label}` })),
-                    ...strataBars(s.budgets.strata['25'], s.budgets.counts['25']).map(b => ({ ...b, label: `25% · ${b.label}`, colour: b.colour === '#94a3b8' ? '#cbd5e1' : '#67b8cc' }))
+                    ...strataBars(s.budgets.strata['25'], s.budgets.counts['25']).map(b => ({ ...b, label: `25% · ${b.label}`, colour: b.colour === '#9BA5B0' ? '#B8B3A8' : '#67b8cc' }))
                 ], { ...options, left: 170, rowHeight: 26, max: 1, label: 'Stratum shares in each budget', note: 'Each stratum keeps the same share in the 25% subset' }), { heading: 'h3' }),
                 text: `<p>The 25% budget (${num(s.budgets.counts['25'])} of ${num(s.budgets.counts['100'])} images, seed ${s.budgets.seed}) is drawn separately inside four strata, so it keeps the same mix of target and target-free images. It is nested in the full set and shared by every method and seed.</p>`
                     + `<p>${pct(s.budgets.strata['100'].neither / s.budgets.counts['100'])} of training images contain neither target: the image-level side of the imbalance.</p>`
@@ -137,7 +137,7 @@ const FN_PREP = {
                 title: 'Normalise for the pretrained encoder',
                 figures: FN_MATH.equations(['norm']) + `<dl class="fn-definition-list">${['Red', 'Green', 'Blue'].map((c, i) => `<dt>${c}</dt><dd>${FN_MATH.tex(String.raw`\mu=${s.normalisation.mean[i].toFixed(3)},\ \sigma=${s.normalisation.std[i].toFixed(3)}`)}</dd>`).join('')}</dl>`,
                 text: `<p>The U-Net's ResNet-18 encoder was pretrained on ImageNet, so its input uses the same per-channel statistics. Values then range from ${s.normalisation.theoretical_range[0].toFixed(2)} to ${s.normalisation.theoretical_range[1].toFixed(2)} (this example: ${s.normalisation.example_range[0].toFixed(2)} to ${s.normalisation.example_range[1].toFixed(2)}).</p>`
-                    + `<p>The Random Forest instead summarises superpixels into 22 numbers: <a href="#walkthrough">How the models work → SLIC + Random Forest</a>.</p>`
+                    + `<p>The Random Forest instead summarises superpixels into 22 numbers: <a href="#walkthrough">How the models work: SLIC + Random Forest</a>.</p>`
             }
         ];
     },
@@ -159,8 +159,8 @@ const FN_PREP = {
             + `<section class="fn-card fn-walk-stage"><ol class="fn-walk-rail">${rail}</ol>`
             + `<div class="fn-walk-head"><span class="fn-eyebrow">Step ${self.step + 1} of ${steps.length}</span><h2>${esc(step.title)}</h2></div>`
             + `<div class="fn-walk-body"><div class="fn-walk-figures ${step.two ? 'two' : ''}">${step.figures}</div><div class="fn-walk-text">${step.text}</div></div>`
-            + `<div class="fn-walk-nav"><button type="button" class="fn-btn" data-prep-move="-1" ${self.step === 0 ? 'disabled' : ''}>← Previous step</button>`
-            + `<button type="button" class="fn-btn fn-btn-strong" data-prep-move="1" ${self.step === steps.length - 1 ? 'disabled' : ''}>Next step →</button></div></section>`;
+            + `<div class="fn-walk-nav"><button type="button" class="fn-btn" data-prep-move="-1" ${self.step === 0 ? 'disabled' : ''}>Previous step</button>`
+            + `<button type="button" class="fn-btn fn-btn-strong" data-prep-move="1" ${self.step === steps.length - 1 ? 'disabled' : ''}>Next step</button></div></section>`;
     }
 };
 

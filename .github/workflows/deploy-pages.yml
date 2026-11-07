@@ -6,7 +6,7 @@ on:
     paths:
       - app/index.html
       - app/assets/**
-      - gp/web/index.html
+      - gp/web/*.html
       - gp/web/assets/**
       - gp/web/data/**
       - .github/workflows/deploy-pages.yml
@@ -33,9 +33,9 @@ jobs:
           mkdir -p _site
           cp app/index.html _site/index.html
           cp -r app/assets _site/assets
-          # FloodNet group-project results explorer, linked from the study site's sidebar.
+          # FloodNet group project: the story page (index.html) and the results dashboard (app.html).
           mkdir -p _site/floodnet
-          cp gp/web/index.html _site/floodnet/index.html
+          cp gp/web/*.html _site/floodnet/
           cp -r gp/web/assets _site/floodnet/assets
           cp -r gp/web/data _site/floodnet/data
           rm -rf _site/floodnet/data/hires

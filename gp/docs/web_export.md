@@ -21,6 +21,8 @@ Every asset URL is relative to the web root; absolute paths, parent traversal, c
 
 `web/data/uniform.json` has the same `runs`, `summary`, `budget_effects`, `explorer_runs` and `samples` shape for the report's forests (retrained with the U-Net's class weights and every region) next to the unchanged U-Nets, plus `comparisons` against the first-version forests in `results.json` and its own `experiment_identity`. The app shows `uniform.json` and keeps the first-version forests as a reference. `scripts/make_report_assets.py` reads both and writes `web/data/presentation.json` and `web/data/presentation/` for the Presentation mode.
 
+The site has two pages: `web/index.html`, a static story page whose numbers are checked against `uniform.json` and `results.json` by `scripts/browser_checks.js`, and `web/app.html`, the dashboard that reads these exports. Old dashboard links such as `index.html#results` are forwarded to `app.html#results`. The story page's photos (`web/data/landing/`) are made from the original test images by `scripts/make_landing_images.py`.
+
 `web/data/` is committed so the app can be served from any checkout. To share it, copy the whole `web/` folder and serve it over HTTP; no training environment is needed. Linking from the lecture app later requires only a relative link (and staging `gp/web` in the Pages workflow).
 
 ## Walkthrough and sharp photos
