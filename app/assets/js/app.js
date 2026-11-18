@@ -136,6 +136,40 @@
         });
         document.addEventListener('input', e => { if (e.target.id === 'cs-search') filterSnippets(); });
 
+        // Calculation reference: lecture filters and search
+        function filterCalculations() {
+            const sec = document.getElementById('sec-calculation');
+            if (!sec || !sec.querySelector('#calc-search')) return;
+            const chapter = sec.querySelector('[data-calc-chip].on').dataset.calcChip;
+            const query = sec.querySelector('#calc-search').value.trim().toLowerCase();
+            const cards = sec.querySelectorAll('.calc-card');
+            let shown = 0;
+            cards.forEach(card => {
+                const match = (chapter === 'all' || card.dataset.calcCh === chapter) &&
+                    (!query || card.textContent.toLowerCase().includes(query));
+                card.hidden = !match;
+                if (match) shown++;
+            });
+            sec.querySelectorAll('.calc-group').forEach(group => {
+                group.hidden = !group.querySelector('.calc-card:not([hidden])');
+            });
+            sec.querySelector('.calc-empty').hidden = shown > 0;
+            sec.querySelector('.calc-count').textContent = 'Showing ' + shown + ' of ' + cards.length + ' calculations';
+            fitMath(sec);
+        }
+        document.addEventListener('click', e => {
+            const chip = e.target.closest('[data-calc-chip]');
+            if (!chip) return;
+            const sec = chip.closest('#sec-calculation');
+            if (!sec) return;
+            sec.querySelectorAll('[data-calc-chip]').forEach(btn => {
+                btn.classList.toggle('on', btn === chip);
+                btn.setAttribute('aria-pressed', String(btn === chip));
+            });
+            filterCalculations();
+        });
+        document.addEventListener('input', e => { if (e.target.id === 'calc-search') filterCalculations(); });
+
         // Diagrams
         function fillDiagrams(root) {
             const src = window.ML_DIAGRAMS || {};
