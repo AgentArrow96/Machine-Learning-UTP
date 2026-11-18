@@ -1,3 +1,7 @@
 .venv
 __pycache__/
 app/_aws_backup/
+
+# Local lecture slides and viewer
+
+/app/lecture-slides.js

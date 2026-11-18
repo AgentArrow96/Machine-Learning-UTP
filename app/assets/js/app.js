@@ -79,6 +79,63 @@
         document.addEventListener('input', e => { if (e.target.matches('.toc-search')) tocFilter(e.target); });
         document.addEventListener('change', e => { if (e.target.id === 'quiz-mode') updateModeNote(); });
 
+        // Code snippets: lecture filters, search and recall practice
+        function filterSnippets() {
+            const sec = document.getElementById('sec-snippets');
+            if (!sec || !sec.querySelector('#cs-search')) return;
+            const chapter = sec.querySelector('.cs-chip.on').dataset.csChip;
+            const query = sec.querySelector('#cs-search').value.trim().toLowerCase();
+            let shown = 0;
+            sec.querySelectorAll('[data-cs-card]').forEach(card => {
+                const match = (chapter === 'all' || card.dataset.csCh === chapter) &&
+                    (!query || card.textContent.toLowerCase().includes(query));
+                card.hidden = !match;
+                const index = sec.querySelector('[data-cs-index="' + card.id.slice(8) + '"]');
+                if (index) index.closest('tr').hidden = !match;
+                if (match) shown++;
+            });
+            sec.querySelectorAll('.cs-group').forEach(group => { group.hidden = !group.querySelector('[data-cs-card]:not([hidden])'); });
+            sec.querySelector('.cs-empty').hidden = shown > 0;
+            sec.querySelector('.cs-count').textContent = 'Showing ' + shown + ' of ' + sec.querySelectorAll('[data-cs-card]').length + ' snippets';
+        }
+        document.addEventListener('click', e => {
+            const sec = document.getElementById('sec-snippets');
+            if (!sec || !sec.contains(e.target)) return;
+            const chip = e.target.closest('[data-cs-chip]');
+            if (chip) {
+                sec.querySelectorAll('[data-cs-chip]').forEach(btn => {
+                    btn.classList.toggle('on', btn === chip);
+                    btn.setAttribute('aria-pressed', String(btn === chip));
+                });
+                filterSnippets();
+                return;
+            }
+            const recall = e.target.closest('[data-cs-recall]');
+            if (recall) {
+                const on = recall.getAttribute('aria-pressed') !== 'true';
+                recall.setAttribute('aria-pressed', String(on));
+                recall.textContent = on ? 'Recall mode: on' : 'Recall mode';
+                sec.querySelectorAll('[data-cs-reveal]').forEach(btn => {
+                    btn.hidden = !on;
+                    btn.setAttribute('aria-expanded', 'false');
+                    btn.textContent = 'Reveal code';
+                    document.getElementById(btn.getAttribute('aria-controls')).hidden = on;
+                });
+                return;
+            }
+            const reveal = e.target.closest('[data-cs-reveal]');
+            if (reveal) {
+                const code = document.getElementById(reveal.getAttribute('aria-controls'));
+                code.hidden = !code.hidden;
+                reveal.setAttribute('aria-expanded', String(!code.hidden));
+                reveal.textContent = code.hidden ? 'Reveal code' : 'Hide code';
+                return;
+            }
+            const index = e.target.closest('[data-cs-index]');
+            if (index) { sec.querySelector('.cs-index').open = false; jumpTo('snippet-' + index.dataset.csIndex); }
+        });
+        document.addEventListener('input', e => { if (e.target.id === 'cs-search') filterSnippets(); });
+
         // Diagrams
         function fillDiagrams(root) {
             const src = window.ML_DIAGRAMS || {};

@@ -13,6 +13,7 @@
     <script defer src="assets/js/questions.js"></script>
     <script defer src="assets/js/diagrams.js"></script>
     <script defer src="assets/js/visuals.js"></script>
+    <script defer src="lecture-slides.js"></script>
     <script defer src="assets/js/app.js"></script>
 </head>
 <body>
@@ -28,6 +29,7 @@
             <div class="nav-panel">
                 <p class="nav-label fg-gold">EXAM PREP</p>
                 <button class="nav-btn nav-exam active" id="nav-home" data-nav="home">Quick Start</button>
+                <button class="nav-btn nav-exam" id="nav-snippets" data-nav="snippets">Important Code Snippets</button>
                 <button class="nav-btn nav-exam" id="nav-cheat" data-nav="cheat">Master Cheat Sheet</button>
                 <button class="nav-btn nav-exam" id="nav-traps" data-nav="traps">Dangerous Confusions</button>
                 <button class="nav-btn nav-exam" id="nav-simulator" data-nav="simulator">MCQ Simulator</button>
@@ -146,6 +148,7 @@
                     <button data-action="reset-progress">↺ Reset progress</button>
                 </div>
                 <section class="page-section hidden" data-page="home" id="sec-home"></section>
+                <section class="page-section hidden" data-page="snippets" id="sec-snippets"></section>
                 <section class="page-section hidden" data-page="cheat" id="sec-cheat"></section>
                 <section class="page-section hidden" data-page="traps" id="sec-traps"></section>
                 <section class="page-section hidden" data-page="simulator" id="sec-simulator"></section>
